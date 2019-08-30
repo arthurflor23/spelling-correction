@@ -34,21 +34,25 @@ if __name__ == "__main__":
 
         for dataset in dataset_list:
             source_dir = os.path.join(raw_dir, dataset)
-
             assert os.path.exists(source_dir)
-            print(f"The {dataset} dataset will be transformed...")
 
-            mod = importlib.import_module(f"transform.{dataset}")
+            try:
+                mod = importlib.import_module(f"transform.{dataset}")
+                print(f"The {dataset} dataset will be transformed...")
 
-            tfm = mod.Transform(source=source_dir,
-                                charset=(charset_base + charset_special),
-                                max_text_length=max_text_length)
-            tfm.build()
+                tfm = mod.Transform(source=source_dir,
+                                    charset=(charset_base + charset_special),
+                                    max_text_length=max_text_length)
+                tfm.build()
 
-            train += tfm.partitions["train"]
-            valid += tfm.partitions["valid"]
-            test += tfm.partitions["test"]
-            del tfm
+                train += tfm.partitions["train"]
+                valid += tfm.partitions["valid"]
+                test += tfm.partitions["test"]
+                del tfm
+
+            except Exception:
+                print(f"The {dataset} dataset not found...")
+                pass
 
         info = "\n".join([
             f"{args.dataset} partition (sentences)",
