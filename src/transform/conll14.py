@@ -1,7 +1,10 @@
-"""Transform CoNLL14 dataset"""
+"""
+Transform CoNLL14 dataset
+"""
 
 import os
-from util import m2, misc
+from util import m2
+from data import preproc
 
 
 class Transform():
@@ -13,8 +16,8 @@ class Transform():
         self.partitions = dict()
 
     def build(self):
-        lines = list(set(m2.read(self.m2_file)))
-        lines = misc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
+        lines = list(set(m2.read_raw(self.m2_file)))
+        lines = preproc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

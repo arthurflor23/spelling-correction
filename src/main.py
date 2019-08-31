@@ -8,8 +8,9 @@ Provides options via the command line to perform project tasks.
 """
 
 import os
-import importlib
 import argparse
+import importlib
+from data import preproc
 
 
 if __name__ == "__main__":
@@ -44,7 +45,6 @@ if __name__ == "__main__":
                                     charset=(charset_base + charset_special),
                                     max_text_length=max_text_length)
                 tfm.build()
-
                 train += tfm.partitions["train"]
                 valid += tfm.partitions["valid"]
                 test += tfm.partitions["test"]
@@ -62,16 +62,19 @@ if __name__ == "__main__":
         ])
 
         print(f"\n{info}")
+        print(f"The {dataset} transformed is saving...")
         os.makedirs(data_dir, exist_ok=True)
 
-        with open(os.path.join(data_dir, "train.m2"), "w") as f:
-            f.write("S " + "\n\nS ".join(train) + "\n")
+        with open(os.path.join(data_dir, f"{args.dataset}.m2"), "w") as f:
+            f.write("TR_L " + "\nTR_L ".join(train) + "\n")
 
-        with open(os.path.join(data_dir, "valid.m2"), "w") as f:
-            f.write("S " + "\n\nS ".join(valid) + "\n")
+            for item in valid:
+                f.write(f"VA_L {item}\n")
+                f.write(f"VA_S {preproc.add_noise(item)[0]}\n")
 
-        with open(os.path.join(data_dir, "test.m2"), "w") as f:
-            f.write("S " + "\n\nS ".join(test) + "\n")
+            for item in test:
+                f.write(f"TE_L {item}\n")
+                f.write(f"TE_S {preproc.add_noise(item)[0]}\n")
 
         with open(os.path.join(data_dir, "corpus.txt"), "w") as f:
             f.write(" ".join(train))
@@ -80,3 +83,15 @@ if __name__ == "__main__":
             f.write(info)
 
         print(f"Transformation finished.")
+
+    elif args.train:
+
+        # make a n-gram option
+        # corpus.txt to create dictionary and save
+
+        # make a generator option to train neural network
+        import util.m2 as m2
+        dataset = m2.read_dataset(os.path.join(data_dir, f"{args.dataset}.m2"))
+
+        print(dataset["train"]["lab"][0])
+        print(dataset["train"]["sen"][0])

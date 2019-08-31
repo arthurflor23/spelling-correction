@@ -4,7 +4,39 @@ https://github.com/samueljamesbell/m2-correct
 """
 
 
-def read(file_name):
+def read_dataset(file_name):
+    """
+    Read the M2 file and return labels and sentences (load dataset transformed).
+    """
+
+    train, valid, test = dict(), dict(), dict()
+    train["lab"], train["sen"] = [], []
+    valid["lab"], valid["sen"] = [], []
+    test["lab"], test["sen"] = [], []
+
+    with open(file_name, "r", encoding="utf-8") as f:
+        lines = f.read().split("\n")
+
+    for item in lines:
+        if item.startswith("TR_L "):
+            train["lab"].append(item[5:].strip())
+            train["sen"].append(None)
+        elif item.startswith("VA_L "):
+            valid["lab"].append(item[5:].strip())
+        elif item.startswith("VA_S "):
+            valid["sen"].append(item[5:].strip())
+        elif item.startswith("TE_L "):
+            test["lab"].append(item[5:].strip())
+        elif item.startswith("TE_S "):
+            test["sen"].append(item[5:].strip())
+
+    dt = dict()
+    dt["train"], dt["valid"], dt["test"] = train, valid, test
+
+    return dt
+
+
+def read_raw(file_name):
     """
     Read the M2 file and return the sentences with the corrections.
     """

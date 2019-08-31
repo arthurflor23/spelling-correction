@@ -6,39 +6,39 @@ from numpy.random import choice as random_choice, randint as random_randint, ran
 import string
 
 
-def text_normalization(strings, charset, limit):
+def text_normalization(texts, charset, limit):
     """
-    Normalize a batch of strings: replace some stuffs, add spaces around punctuation marks.
+    Normalize a batch of texts: replace some stuffs, add spaces around punctuation marks.
     """
 
     limit -= 1
     min_text_length = 3
     text_list = []
 
-    if not isinstance(strings, list):
-        strings = [strings]
+    if not isinstance(texts, list):
+        texts = [texts]
 
-    for i in range(len(strings)):
-        strings[i] = strings[i].replace("«", "").replace("»", "").replace("“", "\"")
+    for i in range(len(texts)):
+        texts[i] = texts[i].replace("«", "").replace("»", "").replace("“", "\"")
 
-        for y in strings[i]:
+        for y in texts[i]:
             if y not in charset:
-                strings[i] = strings[i].replace(y, "")
+                texts[i] = texts[i].replace(y, "")
 
             if y in string.punctuation.replace("'", ""):
-                strings[i] = strings[i].replace(y, f" {y} ")
+                texts[i] = texts[i].replace(y, f" {y} ")
 
-        strings[i] = " ".join(strings[i].split())
+        texts[i] = " ".join(texts[i].split())
 
-        if len(strings[i]) < min_text_length:
+        if len(texts[i]) < min_text_length:
             continue
 
-        if len(strings[i]) < limit:
-            text_list.append(strings[i])
-            strings[i] = None
+        if len(texts[i]) < limit:
+            text_list.append(texts[i])
+            texts[i] = None
         else:
-            splitted = strings[i].split()
-            strings[i] = None
+            splitted = texts[i].split()
+            texts[i] = None
             text = []
 
             for x in splitted:
@@ -65,10 +65,10 @@ def add_noise(batch):
 
     max_text_length = 128
     amount_of_noise = 0.1 * max_text_length
-    charset = " 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    charset = list(" 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
-    if not isinstance(charset, list):
-        charset = list(charset)
+    if not isinstance(batch, list):
+        batch = [batch]
 
     for i in range(len(batch)):
         for _ in range(2):

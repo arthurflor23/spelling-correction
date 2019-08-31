@@ -1,7 +1,9 @@
-"""Transform 1-Billion Google dataset"""
+"""
+Transform 1-Billion Google dataset (subset)
+"""
 
 import os
-from util import misc
+from data import preproc
 
 
 class Transform():
@@ -25,7 +27,7 @@ class Transform():
                     lines += open(os.path.join(self.source, m2_file)).read().splitlines()
 
         lines = list(set(lines))
-        lines = misc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
+        lines = preproc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

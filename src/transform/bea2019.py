@@ -1,7 +1,10 @@
-"""Transform BEA2019 dataset"""
+"""
+Transform BEA2019 dataset
+"""
 
 import os
-from util import m2, misc
+from util import m2
+from data import preproc
 
 
 class Transform():
@@ -18,10 +21,10 @@ class Transform():
 
         for m2_file in m2_list:
             f = os.path.join(self.m2_file, m2_file)
-            lines += m2.read(f)
+            lines += m2.read_raw(f)
 
         lines = list(set(lines))
-        lines = misc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
+        lines = preproc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)
