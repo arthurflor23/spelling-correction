@@ -62,7 +62,7 @@ if __name__ == "__main__":
         ])
 
         print(f"\n{info}")
-        print(f"The {dataset} transformed is saving...")
+        print(f"{dataset} transformed dataset is saving...")
         os.makedirs(data_dir, exist_ok=True)
 
         with open(os.path.join(data_dir, f"{args.dataset}.m2"), "w") as f:
