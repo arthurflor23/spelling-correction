@@ -17,7 +17,7 @@ class Transform():
 
     def build(self):
         lines = list(set(m2.read_raw(self.m2_file)))
-        lines = preproc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
+        lines = preproc.normalize_text(lines, charset=self.charset, limit=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

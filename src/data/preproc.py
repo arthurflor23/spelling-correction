@@ -1,14 +1,28 @@
 """
-Methods to help manage data development.
+Methods to help manager data development.
 """
 
-from numpy.random import choice as random_choice, randint as random_randint, rand
+import numpy as np
 import string
+import re
 
 
-def text_normalization(texts, charset, limit):
+def parse_sentence(text, spplited=False):
     """
-    Normalize a batch of texts: replace some stuffs, add spaces around punctuation marks.
+    Remove punctuation marks.
+    """
+    matches = re.findall(r"(([^\W_]|['’])+)", text.lower())
+    matches = [match[0] for match in matches]
+
+    if spplited:
+        return matches
+
+    return " ".join(matches)
+
+
+def normalize_text(texts, charset, limit):
+    """
+    Normalize a batch of texts: replace some stuffs and split sentence when necessary.
     """
 
     limit -= 1
@@ -19,16 +33,8 @@ def text_normalization(texts, charset, limit):
         texts = [texts]
 
     for i in range(len(texts)):
-        texts[i] = texts[i].replace("«", "").replace("»", "").replace("“", "\"")
-
-        for y in texts[i]:
-            if y not in charset:
-                texts[i] = texts[i].replace(y, "")
-
-            if y in string.punctuation.replace("'", ""):
-                texts[i] = texts[i].replace(y, f" {y} ")
-
-        texts[i] = " ".join(texts[i].split())
+        texts[i] = "".join([y for y in texts[i] if y in charset])
+        texts[i] = organize_space(texts[i])
 
         if len(texts[i]) < min_text_length:
             continue
@@ -54,6 +60,21 @@ def text_normalization(texts, charset, limit):
     return text_list
 
 
+def organize_space(text):
+    """
+    Organize/add spaces around punctuation marks.
+    """
+
+    text = text.replace("«", "").replace("»", "").replace("“", "\"")
+    text = text.replace(" '", "").replace("'s", "s").replace("'", "")
+
+    for y in text:
+        if y in string.punctuation:
+            text = text.replace(y, f" {y} ")
+
+    return " ".join(text.split())
+
+
 """
 Tool to apply text random noise error, available here:
 https://gist.github.com/MajorTal/67d54887a729b5e5aa85
@@ -65,32 +86,31 @@ def add_noise(batch):
 
     max_text_length = 128
     amount_of_noise = 0.1 * max_text_length
-    charset = list(" 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+    charset = list("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
     if not isinstance(batch, list):
         batch = [batch]
 
     for i in range(len(batch)):
-        for _ in range(2):
-            if rand() < amount_of_noise * len(batch[i]):
-                # Replace a character with a random character
-                random_char_position = random_randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + random_choice(charset[:-1]) + batch[i][random_char_position + 1:]
+        if np.random.rand() < amount_of_noise * len(batch[i]):
+            # Replace a character with a random character
+            random_char_position = np.random.randint(len(batch[i]))
+            batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
 
-            if rand() < amount_of_noise * len(batch[i]):
-                # Delete a character
-                random_char_position = random_randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
+        if np.random.rand() < amount_of_noise * len(batch[i]):
+            # Delete a character
+            random_char_position = np.random.randint(len(batch[i]))
+            batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
 
-            if len(batch[i]) < max_text_length and rand() < amount_of_noise * len(batch[i]):
-                # Add a random character
-                random_char_position = random_randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + random_choice(charset[:-1]) + batch[i][random_char_position:]
+        if len(batch[i]) < max_text_length and np.random.rand() < amount_of_noise * len(batch[i]):
+            # Add a random character
+            random_char_position = np.random.randint(len(batch[i]))
+            batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position:]
 
-            if rand() < amount_of_noise * len(batch[i]):
-                # Transpose 2 characters
-                random_char_position = random_randint(len(batch[i]) - 1)
-                batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
-                            batch[i][random_char_position] + batch[i][random_char_position + 2:])
+        if np.random.rand() < amount_of_noise * len(batch[i]):
+            # Transpose 2 characters
+            random_char_position = np.random.randint(len(batch[i]) - 1)
+            batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
+                        batch[i][random_char_position] + batch[i][random_char_position + 2:])
 
     return batch

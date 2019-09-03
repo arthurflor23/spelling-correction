@@ -6,29 +6,29 @@ https://github.com/samueljamesbell/m2-correct
 
 def read_dataset(file_name):
     """
-    Read the M2 file and return labels and sentences (load dataset transformed).
+    Read the M2 file and return labels and sentences (ground truth and data).
     """
 
     train, valid, test = dict(), dict(), dict()
-    train["lab"], train["sen"] = [], []
-    valid["lab"], valid["sen"] = [], []
-    test["lab"], test["sen"] = [], []
+    train["gt"], train["dt"] = [], []
+    valid["gt"], valid["dt"] = [], []
+    test["gt"], test["dt"] = [], []
 
     with open(file_name, "r", encoding="utf-8") as f:
         lines = f.read().split("\n")
 
     for item in lines:
         if item.startswith("TR_L "):
-            train["lab"].append(item[5:].strip())
-            train["sen"].append(None)
+            train["gt"].append(item[5:].strip())
+            train["dt"].append(None)
         elif item.startswith("VA_L "):
-            valid["lab"].append(item[5:].strip())
-        elif item.startswith("VA_S "):
-            valid["sen"].append(item[5:].strip())
+            valid["gt"].append(item[5:].strip())
+        elif item.startswith("VA_P "):
+            valid["dt"].append(item[5:].strip())
         elif item.startswith("TE_L "):
-            test["lab"].append(item[5:].strip())
-        elif item.startswith("TE_S "):
-            test["sen"].append(item[5:].strip())
+            test["gt"].append(item[5:].strip())
+        elif item.startswith("TE_P "):
+            test["dt"].append(item[5:].strip())
 
     dt = dict()
     dt["train"], dt["valid"], dt["test"] = train, valid, test

@@ -40,6 +40,6 @@ class Transform():
                     lines.append(text_line)
 
         lines = list(set(lines))
-        lines = preproc.text_normalization(lines, charset=self.charset, limit=self.max_text_length)
+        lines = preproc.normalize_text(lines, charset=self.charset, limit=self.max_text_length)
 
         return lines
