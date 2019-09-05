@@ -1,6 +1,4 @@
-"""
-Transform Washington dataset
-"""
+"""Transform Washington dataset"""
 
 import os
 from data import preproc

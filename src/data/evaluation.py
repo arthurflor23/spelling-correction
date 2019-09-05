@@ -6,19 +6,19 @@ Tool to metrics calculation through data and label (string | string).
 import editdistance
 
 
-def ocr_metrics(data, label):
+def ocr_metrics(predict, ground_truth):
     """Calculate Character Error Rate (CER) and Word Error Rate (WER)"""
 
     cer, wer = [], []
 
-    for (pred, lab) in zip(data, label):
-        pd, lb = list(pred.lower()), list(lab.lower())
-        dist = editdistance.eval(pd, lb)
-        cer.append(dist / (max(len(pd), len(lb))))
+    for (pd, gt) in zip(predict, ground_truth):
+        pd_cer, gt_cer = list(pd.lower()), list(gt.lower())
+        dist = editdistance.eval(pd_cer, gt_cer)
+        cer.append(dist / (max(len(pd_cer), len(gt_cer))))
 
-        pd, lb = pred.lower().split(), lab.lower().split()
-        dist = editdistance.eval(pd, lb)
-        wer.append(dist / (max(len(pd), len(lb))))
+        pd_wer, gt_wer = pd.lower().split(), gt.lower().split()
+        dist = editdistance.eval(pd_wer, gt_wer)
+        wer.append(dist / (max(len(pd_wer), len(gt_wer))))
 
     cer_f = sum(cer) / len(cer)
     wer_f = sum(wer) / len(wer)
@@ -26,27 +26,23 @@ def ocr_metrics(data, label):
     return (cer_f, wer_f)
 
 
-def report(dtgen, new_dt, total_time):
-    """
-    Calculate and organize metrics and predicts informations
-    """
-
-    old_metric = ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
-    new_metric = ocr_metrics(new_dt, dtgen.dataset["test"]["gt"])
-    pred_corpus = ""
+def report(dtgen, new_dt, metrics, total_time, plus=""):
+    """Calculate and organize metrics and predicts informations"""
 
     eval_corpus = "\n".join([
         f"Total test images:    {dtgen.total_test}",
+        f"{plus}",
         f"Total time:           {total_time:.4f} sec",
         f"Time per item:        {(total_time / dtgen.total_test):.4f} sec\n",
         f"Metrics (before):",
-        f"Character Error Rate: {old_metric[0]:.4f}",
-        f"Word Error Rate:      {old_metric[1]:.4f}\n",
+        f"Character Error Rate: {metrics[0][0]:.4f}",
+        f"Word Error Rate:      {metrics[0][1]:.4f}\n",
         f"Metrics (after):",
-        f"Character Error Rate: {new_metric[0]:.4f}",
-        f"Word Error Rate:      {new_metric[1]:.4f}"
+        f"Character Error Rate: {metrics[1][0]:.4f}",
+        f"Word Error Rate:      {metrics[1][1]:.4f}"
     ])
 
+    pred_corpus = ""
     for i in range(dtgen.total_test):
         pred_corpus += f"GT {dtgen.dataset['test']['gt'][i]}\n"
         pred_corpus += f"DT {dtgen.dataset['test']['dt'][i]}\n"

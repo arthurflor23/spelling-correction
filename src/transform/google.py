@@ -1,6 +1,4 @@
-"""
-Transform 1-Billion Google dataset (subset)
-"""
+"""Transform 1-Billion Google dataset (subset)"""
 
 import os
 from data import preproc

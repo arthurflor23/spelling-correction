@@ -1,6 +1,4 @@
-"""
-Transform Rimes dataset
-"""
+"""Transform Rimes dataset"""
 
 import os
 from data import preproc

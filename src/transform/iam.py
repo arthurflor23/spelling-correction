@@ -1,6 +1,4 @@
-"""
-Transform IAM dataset
-"""
+"""Transform IAM dataset"""
 
 import os
 from data import preproc

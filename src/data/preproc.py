@@ -1,32 +1,38 @@
-"""
-Methods to help manager data development.
-"""
+"""Methods to help manager data development."""
 
-import numpy as np
-import string
 import re
+import string
+import numpy as np
 
 
-def parse_sentence(text, spplited=False):
-    """
-    Remove punctuation marks.
-    """
-    matches = re.findall(r"(([^\W_]|['’])+)", text.lower())
+def encode(text, charset, max_text_length):
+    """Encode text array (sparse)."""
+
+    pad_encoded = np.zeros(max_text_length)
+    encoded = [float(charset.find(x)) for x in text if charset.find(x) > -1]
+    encoded = [float(charset.find("&"))] if len(encoded) == 0 else encoded
+    pad_encoded[0:len(encoded)] = encoded
+
+    return pad_encoded
+
+
+def parse_sentence(text, splitted=False):
+    """Remove punctuation marks."""
+
+    matches = re.findall(r"(([^\W_]|['’])+)", text)
     matches = [match[0] for match in matches]
 
-    if spplited:
+    if splitted:
         return matches
 
     return " ".join(matches)
 
 
 def normalize_text(texts, charset, limit):
-    """
-    Normalize a batch of texts: replace some stuffs and split sentence when necessary.
-    """
+    """Normalize a batch of texts: replace some stuffs and split sentence when necessary."""
 
-    limit -= 1
     min_text_length = 3
+    limit -= min_text_length
     text_list = []
 
     if not isinstance(texts, list):
@@ -61,9 +67,7 @@ def normalize_text(texts, charset, limit):
 
 
 def organize_space(text):
-    """
-    Organize/add spaces around punctuation marks.
-    """
+    """Organize/add spaces around punctuation marks."""
 
     text = text.replace("«", "").replace("»", "").replace("“", "\"")
     text = text.replace(" '", "").replace("'s", "s").replace("'", "")
@@ -81,10 +85,9 @@ https://gist.github.com/MajorTal/67d54887a729b5e5aa85
 """
 
 
-def add_noise(batch):
+def add_noise(batch, max_text_length):
     """Add some artificial spelling mistakes to the string"""
 
-    max_text_length = 128
     amount_of_noise = 0.1 * max_text_length
     charset = list("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
@@ -112,5 +115,7 @@ def add_noise(batch):
             random_char_position = np.random.randint(len(batch[i]) - 1)
             batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
                         batch[i][random_char_position] + batch[i][random_char_position + 2:])
+
+        batch[i] = organize_space(batch[i])
 
     return batch

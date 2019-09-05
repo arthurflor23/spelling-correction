@@ -14,39 +14,37 @@ Provides options via the command line to perform project tasks.
 
 import os
 import time
-import string
 import argparse
 import importlib
 
-from data import preproc
-from util import evaluation
+from data import preproc, evaluation
+from tool.symspell import Symspell
 from data.generator import DataGenerator
-from symspellpy.symspellpy import SymSpell
 
 
 def main(args):
-    raw_dir = os.path.join("..", "raw")
-    data_dir = os.path.join("..", "data", args.dataset)
-    output_dir = os.path.join("..", "output", args.dataset, args.mode)
+    raw_path = os.path.join("..", "raw")
+    data_path = os.path.join("..", "data", args.dataset)
+    output_path = os.path.join("..", "output", args.dataset, args.mode)
 
-    m2_src = os.path.join(data_dir, f"{args.dataset}.m2")
+    m2_src = os.path.join(data_path, f"{args.dataset}.m2")
     max_text_length = 128
     charset_base = "".join([chr(i) for i in range(32, 127)])
     charset_special = "".join([chr(i) for i in range(192, 256)])
 
     if args.transform:
-        dataset_list = next(os.walk(raw_dir))[1] if args.dataset == "all" else [args.dataset]
+        dataset_list = next(os.walk(raw_path))[1] if args.dataset == "all" else [args.dataset]
         train, valid, test = [], [], []
 
         for dataset in dataset_list:
-            source_dir = os.path.join(raw_dir, dataset)
-            assert os.path.exists(source_dir)
+            source_path = os.path.join(raw_path, dataset)
+            assert os.path.exists(source_path)
 
             try:
                 mod = importlib.import_module(f"transform.{dataset}")
                 print(f"The {dataset} dataset will be transformed...")
 
-                tfm = mod.Transform(source=source_dir,
+                tfm = mod.Transform(source=source_path,
                                     charset=(charset_base + charset_special),
                                     max_text_length=max_text_length)
                 tfm.build()
@@ -68,87 +66,65 @@ def main(args):
 
         print(f"\n{info}")
         print(f"{dataset} transformed dataset is saving...")
-        os.makedirs(data_dir, exist_ok=True)
+        os.makedirs(data_path, exist_ok=True)
 
         with open(m2_src, "w") as f:
             f.write("TR_L " + "\nTR_L ".join(train) + "\n")
 
             for item in valid:
                 f.write(f"VA_L {item}\n")
-                f.write(f"VA_P {preproc.add_noise(item)[0]}\n")
+                f.write(f"VA_P {preproc.add_noise(item, max_text_length)[0]}\n")
 
             for item in test:
                 f.write(f"TE_L {item}\n")
-                f.write(f"TE_P {preproc.add_noise(item)[0]}\n")
+                f.write(f"TE_P {preproc.add_noise(item, max_text_length)[0]}\n")
 
-        with open(os.path.join(data_dir, "about.txt"), "w") as f:
+        with open(os.path.join(data_path, "about.txt"), "w") as f:
             f.write(info)
 
         print(f"Transformation finished.")
 
-    elif args.mode == "symspell":
-        os.makedirs(output_dir, exist_ok=True)
-        corpus = os.path.join(output_dir, "corpus.data")
-        dictionary = os.path.join(output_dir, "dictionary.data")
+    else:
+        os.makedirs(output_path, exist_ok=True)
+        dtgen = DataGenerator(m2_src=m2_src,
+                              batch_size=args.batch_size,
+                              max_text_length=max_text_length,
+                              charset=(charset_base + charset_special))
 
-        sym_spell = SymSpell(max_dictionary_edit_distance=args.max_distance, prefix_length=7)
-        dtgen = DataGenerator(m2_src=m2_src, batch_size=args.batch_size, max_text_length=max_text_length)
+        if args.mode == "symspell":
+            symspell = Symspell(output_path, args.max_edit_distance)
 
-        if not os.path.isfile(dictionary):
+            if not os.path.isfile(symspell.dictionary_path):
+                log = symspell.create_dictionary(corpus=dtgen.dataset["train"]["gt"])
+
+                with open(os.path.join(output_path, "train.txt"), "w") as lg:
+                    print(log)
+                    lg.write(log)
+
             start_time = time.time()
-
-            with open(corpus, "w") as f:
-                f.write(preproc.parse_sentence(" ".join(dtgen.dataset["train"]["gt"])))
-            sym_spell.create_dictionary(corpus)
-
-            with open(dictionary, "w") as f:
-                for key, count in sym_spell.words.items():
-                    f.write(f"{key} {count}\n")
-
+            predict = symspell.autocorrect(batch=dtgen.dataset["test"]["dt"])
             total_time = time.time() - start_time
 
-            train_corpus = "\n".join([
-                f"Total train images:   {dtgen.total_train}",
-                f"Total time:           {total_time:.4f} sec",
-                f"Time per item:        {(total_time / dtgen.total_train):.4f} sec\n",
-            ])
+            old_metric = evaluation.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
+            new_metric = evaluation.ocr_metrics(predict, dtgen.dataset["test"]["gt"])
 
-            with open(os.path.join(output_dir, "train.txt"), "w") as lg:
-                print(train_corpus)
-                lg.write(train_corpus)
+            eval_corpus, pred_corpus = evaluation.report(dtgen, predict, [old_metric, new_metric], total_time,
+                                                         plus=f"Max Edit distance:\t{args.max_edit_distance}\n")
 
-        sym_spell.load_dictionary(dictionary, term_index=0, count_index=1)
-        start_time = time.time()
-        new_dt = []
+            with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                print(eval_corpus)
+                lg.write(eval_corpus)
 
-        for i in range(dtgen.total_test):
-            corrected = []
+            with open(os.path.join(output_path, "predict.txt"), "w") as lg:
+                lg.write(pred_corpus)
 
-            for item in dtgen.dataset["test"]["dt"][i].split():
-                temp = item
-                if item not in string.punctuation:
-                    sugg = sym_spell.lookup(item, "TOP", args.max_edit_distance, transfer_casing=True)
-                    temp = sugg[0].term if sugg else item
+        elif args.mode == "neuralnetwork":
 
-                corrected.append(preproc.organize_space(temp))
-            new_dt.append(" ".join(corrected))
+            if args.train:
+                print("train neural_network")
 
-        total_time = time.time() - start_time
-        eval_corpus, pred_corpus = evaluation.report(dtgen, new_dt, total_time)
-
-        with open(os.path.join(output_dir, "evaluate.txt"), "w") as lg:
-            print(eval_corpus)
-            lg.write(eval_corpus)
-
-        with open(os.path.join(output_dir, "predict.txt"), "w") as lg:
-            lg.write(pred_corpus)
-
-    elif args.mode == "neuralnetwork":
-        if args.train:
-            print("train neural_network")
-
-        elif args.test:
-            print("test neural_network")
+            elif args.test:
+                print("test neural_network")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,4 @@
-"""
-Transform Bentham dataset
-"""
+"""Transform Bentham dataset"""
 
 import os
 import html

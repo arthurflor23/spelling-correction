@@ -1,10 +1,7 @@
-"""
-Transform BEA2019 dataset
-"""
+"""Transform BEA2019 dataset"""
 
 import os
-from util import m2
-from data import preproc
+from data import preproc, m2
 
 
 class Transform():
