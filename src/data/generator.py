@@ -26,7 +26,9 @@ class DataGenerator():
     def fill_batch(self, partition, maximum, x, y):
         """Fill batch array (x, y) if required (batch_size)"""
 
-        if len(x) < self.batch_size:
+        length = len(x) if x else len(y)
+
+        if length < self.batch_size:
             fill = self.batch_size - len(x)
             i = np.random.choice(np.arange(0, maximum - fill), 1)[0]
 
@@ -37,7 +39,7 @@ class DataGenerator():
 
         return (x, y)
 
-    def next_train_batch(self):
+    def next_train_batch(self, matrix=True):
         """Get the next batch from train partition (yield)"""
 
         while True:
@@ -53,7 +55,10 @@ class DataGenerator():
 
             x_train = preproc.add_noise(y_train, self.max_text_length)
 
-            x_train = [preproc.encode(x, self.charset, self.max_text_length) for x in x_train]
+            if matrix:
+                x_train = [x.split() for x in x_train]
+
+            x_train = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_train]
             y_train = [preproc.encode(x, self.charset, self.max_text_length) for x in y_train]
 
             x_train_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
@@ -69,7 +74,7 @@ class DataGenerator():
 
             yield (inputs, output)
 
-    def next_valid_batch(self):
+    def next_valid_batch(self, matrix=False):
         """Get the next batch from validation partition (yield)"""
 
         while True:
@@ -85,7 +90,10 @@ class DataGenerator():
 
             x_valid, y_valid = self.fill_batch("valid", self.total_valid, x_valid, y_valid)
 
-            x_valid = [preproc.encode(x, self.charset, self.max_text_length) for x in x_valid]
+            if matrix:
+                x_valid = [x.split() for x in x_valid]
+
+            x_valid = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_valid]
             y_valid = [preproc.encode(x, self.charset, self.max_text_length) for x in y_valid]
 
             x_valid_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
@@ -101,7 +109,7 @@ class DataGenerator():
 
             yield (inputs, output)
 
-    def next_test_batch(self):
+    def next_test_batch(self, matrix=False):
         """Return model predict parameters"""
 
         while True:
@@ -118,7 +126,10 @@ class DataGenerator():
             x_test, y_test = self.fill_batch("test", self.total_test, x_test, y_test)
             w_test = [x.encode() for x in y_test]
 
-            x_test = [preproc.encode(x, self.charset, self.max_text_length) for x in x_test]
+            if matrix:
+                x_test = [x.split() for x in x_test]
+
+            x_test = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_test]
             y_test = [preproc.encode(x, self.charset, self.max_text_length) for x in y_test]
 
             x_test_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])

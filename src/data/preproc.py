@@ -5,15 +5,23 @@ import string
 import numpy as np
 
 
-def encode(text, charset, max_text_length):
+def encode(text, charset, max_text_length, matrix=False):
     """Encode text array (sparse)."""
 
-    pad_encoded = np.zeros(max_text_length)
-    encoded = [float(charset.find(x)) for x in text if charset.find(x) > -1]
-    encoded = [float(charset.find("&"))] if len(encoded) == 0 else encoded
-    pad_encoded[0:len(encoded)] = encoded
+    if not isinstance(text, list):
+        text = [text]
 
-    return pad_encoded
+    pad_encoded = np.zeros(shape=(max_text_length, max_text_length))
+
+    for index, item in enumerate(text):
+        encoded = [float(charset.find(x)) for x in item if charset.find(x) > -1]
+        encoded = [float(charset.find("&"))] if len(encoded) == 0 else encoded
+        pad_encoded[index][0:len(encoded)] = encoded
+
+    if matrix:
+        return pad_encoded
+
+    return pad_encoded[0]
 
 
 def parse_sentence(text, splitted=False):
