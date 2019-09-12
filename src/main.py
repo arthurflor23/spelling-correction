@@ -58,7 +58,7 @@ def main(args):
                 pass
 
         info = "\n".join([
-            f"{args.dataset} partition (sentences)",
+            f"{args.dataset} partition (number of sentences)",
             f"Train:        {len(train)}",
             f"Validation:   {len(valid)}",
             f"Test:         {len(test)}\n"

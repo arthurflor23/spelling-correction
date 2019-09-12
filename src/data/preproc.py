@@ -103,26 +103,27 @@ def add_noise(batch, max_text_length):
         batch = [batch]
 
     for i in range(len(batch)):
-        if np.random.rand() < amount_of_noise * len(batch[i]):
+        for _ in range(2):
             # Replace a character with a random character
-            random_char_position = np.random.randint(len(batch[i]))
-            batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
+            if np.random.rand() < amount_of_noise * len(batch[i]):
+                random_char_position = np.random.randint(len(batch[i]))
+                batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
 
-        if np.random.rand() < amount_of_noise * len(batch[i]):
-            # Delete a character
-            random_char_position = np.random.randint(len(batch[i]))
-            batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
+            # Transpose 2 characters
+            if np.random.rand() < amount_of_noise * len(batch[i]):
+                random_char_position = np.random.randint(len(batch[i]) - 1)
+                batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
+                            batch[i][random_char_position] + batch[i][random_char_position + 2:])
 
+        # Add a random character
         if len(batch[i]) < max_text_length and np.random.rand() < amount_of_noise * len(batch[i]):
-            # Add a random character
             random_char_position = np.random.randint(len(batch[i]))
             batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position:]
 
+        # Delete a character
         if np.random.rand() < amount_of_noise * len(batch[i]):
-            # Transpose 2 characters
-            random_char_position = np.random.randint(len(batch[i]) - 1)
-            batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
-                        batch[i][random_char_position] + batch[i][random_char_position + 2:])
+            random_char_position = np.random.randint(len(batch[i]))
+            batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
 
         batch[i] = organize_space(batch[i])
 
