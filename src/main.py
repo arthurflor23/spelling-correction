@@ -93,13 +93,11 @@ def main(args):
 
         if args.mode == "symspell":
             symspell = Symspell(output_path, args.max_edit_distance)
+            train_corpus = symspell.load(corpus=dtgen.dataset["train"]["gt"])
 
-            if not os.path.isfile(symspell.dictionary_path):
-                log = symspell.create_dictionary(corpus=dtgen.dataset["train"]["gt"])
-
-                with open(os.path.join(output_path, "train.txt"), "w") as lg:
-                    print(log)
-                    lg.write(log)
+            with open(os.path.join(output_path, "train.txt"), "w") as lg:
+                print(train_corpus)
+                lg.write(train_corpus)
 
             start_time = time.time()
             predict = symspell.autocorrect(batch=dtgen.dataset["test"]["dt"])

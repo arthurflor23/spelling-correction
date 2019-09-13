@@ -29,10 +29,11 @@ class Symspell():
         self.max_edit_distance = max_edit_distance
         self.symspell = SymSpell(max_dictionary_edit_distance=max_edit_distance, prefix_length=prefix_length)
 
-    def create_dictionary(self, corpus):
+    def load(self, corpus):
         """Create and load corpus/dictionary"""
 
         start_time = time.time()
+
         with open(self.corpus_path, "w") as f:
             f.write(preproc.parse_sentence(" ".join(corpus)))
 
@@ -45,10 +46,10 @@ class Symspell():
         total_time = time.time() - start_time
 
         train_corpus = "\n".join([
-            f"Total train images:   {len(corpus)}",
-            f"Total tokens:         {len(self.symspell.words.items())}\n",
-            f"Total time:           {total_time:.4f} sec",
-            f"Time per item:        {(total_time / len(corpus)):.4f} sec\n",
+            f"Total train sentences: {len(corpus)}",
+            f"Total tokens:          {len(self.symspell.words.items())}\n",
+            f"Total time:            {total_time:.4f} sec",
+            f"Time per sentence:     {(total_time / len(corpus)):.4f} sec\n",
         ])
 
         return train_corpus
