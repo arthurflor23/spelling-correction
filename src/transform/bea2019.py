@@ -1,7 +1,7 @@
 """Transform BEA2019 dataset"""
 
 import os
-from data import preproc, m2
+from data import preproc as pp, m2
 
 
 class Transform():
@@ -21,7 +21,7 @@ class Transform():
             lines += m2.read_raw(f)
 
         lines = list(set(lines))
-        lines = preproc.normalize_text(lines, charset=self.charset, limit=self.max_text_length)
+        lines = pp.normalize_text(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

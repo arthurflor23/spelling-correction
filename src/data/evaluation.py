@@ -30,7 +30,7 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
     """Calculate and organize metrics and predicts informations"""
 
     eval_corpus = "\n".join([
-        f"Total test images:    {dtgen.total_test}",
+        f"Total test sentences: {dtgen.total_test}",
         f"{plus}",
         f"Total time:           {total_time:.4f} sec",
         f"Time per item:        {(total_time / dtgen.total_test):.4f} sec\n",

@@ -1,7 +1,7 @@
 """Transform 1-Billion Google dataset (subset)"""
 
 import os
-from data import preproc
+from data import preproc as pp
 
 
 class Transform():
@@ -17,15 +17,11 @@ class Transform():
         lines = []
 
         for m2_file in m2_list:
-            if ".en" in m2_file or ".fr" in m2_file:
-                if "shuffled" in m2_file:
-                    if "2007" in m2_file or "2011" in m2_file:
-                        lines += open(os.path.join(self.source, m2_file)).read().splitlines()
-                else:
-                    lines += open(os.path.join(self.source, m2_file)).read().splitlines()
+            if ("news-commentary-v6" in m2_file) and (".en" in m2_file or ".fr" in m2_file):
+                lines += open(os.path.join(self.source, m2_file)).read().splitlines()
 
         lines = list(set(lines))
-        lines = preproc.normalize_text(lines, charset=self.charset, limit=self.max_text_length)
+        lines = pp.normalize_text(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

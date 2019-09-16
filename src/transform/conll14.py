@@ -1,7 +1,7 @@
 """Transform CoNLL14 dataset"""
 
 import os
-from data import preproc, m2
+from data import preproc as pp, m2
 
 
 class Transform():
@@ -14,7 +14,7 @@ class Transform():
 
     def build(self):
         lines = list(set(m2.read_raw(self.m2_file)))
-        lines = preproc.normalize_text(lines, charset=self.charset, limit=self.max_text_length)
+        lines = pp.normalize_text(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)

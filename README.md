@@ -39,16 +39,17 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
-* `--mode`: method to be used (symspell or neuralnetwork)
+* `--mode`: method to be used (symspell or network)
 
   `symspell`:
-    * `--max_edit_distance`: 2 by default
+    * `--N`: 2 by default
 
-  `neuralnetwork`:
-    * `--train`: if neuralnetwork mode: train the model (neural network)
-    * `--test`: if neuralnetwork mode: evaluate and predict sentences
-    * `--epochs`: if neuralnetwork mode: number of epochs
-    * `--batch_size`: if neuralnetwork mode: number of batches
+  `network`:
+    * `--method`: if network mode: type of model (seq2seq, gcnn, gcnn_ctc)
+    * `--train`: if network mode: train the model (neural network)
+    * `--test`: if network mode: evaluate and predict sentences
+    * `--epochs`: if network mode: number of epochs
+    * `--batch_size`: if network mode: number of batches
 
 ## Tutorial (Google Colab/Drive)
 

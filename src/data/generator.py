@@ -1,45 +1,47 @@
 """Generator function to supply train/test with text data."""
 
 import numpy as np
-from data import preproc, m2
+from data import preproc as pp, m2
 
 
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, max_text_length, charset):
-        self.batch_size = batch_size
-        self.max_text_length = max_text_length
+    def __init__(self, m2_src, batch_size, charset, max_text_length, ctc=False):
         self.dataset = m2.read_dataset(m2_src)
+        self.batch_size = batch_size
         self.charset = charset
+        self.max_text_length = max_text_length
+        self.ctc = ctc
 
-        self.train_index, self.valid_index, self.test_index = 0, 0, 0
+        # Normalize sentences of the test partition (only to custom predicts)
+        # self.dataset["test"]["dt"] = pp.normalize_text(self.dataset["test"]["dt"], charset, max_text_length)
+        # self.dataset["test"]["gt"] = pp.normalize_text(self.dataset["test"]["gt"], charset, max_text_length)
+
+        self.full_fill_partition("train")
+        self.full_fill_partition("valid")
+        self.full_fill_partition("test")
 
         self.total_train = len(self.dataset["train"]["gt"])
         self.total_valid = len(self.dataset["valid"]["gt"])
         self.total_test = len(self.dataset["test"]["gt"])
 
-        self.train_steps = self.total_train // self.batch_size
-        self.valid_steps = self.total_valid // self.batch_size
-        self.test_steps = self.total_test // self.batch_size
+        self.train_steps = np.maximum(self.total_train // self.batch_size, 1)
+        self.valid_steps = np.maximum(self.total_valid // self.batch_size, 1)
+        self.test_steps = np.maximum(self.total_test // self.batch_size, 1)
 
-    def fill_batch(self, partition, maximum, x, y):
-        """Fill batch array (x, y) if required (batch_size)"""
+        self.train_index, self.valid_index, self.test_index = 0, 0, 0
 
-        length = len(x) if x else len(y)
+    def full_fill_partition(self, pt):
+        """Make full fill partition up to batch size and steps"""
 
-        if length < self.batch_size:
-            fill = self.batch_size - len(x)
-            i = np.random.choice(np.arange(0, maximum - fill), 1)[0]
+        while len(self.dataset[pt]["gt"]) % self.batch_size:
+            i = np.random.choice(np.arange(0, len(self.dataset[pt]["gt"])), 1)[0]
 
-            if x is not None:
-                x = np.append(x, self.dataset[partition]["dt"][i:i + fill], axis=0)
-            if y is not None:
-                y = np.append(y, self.dataset[partition]["gt"][i:i + fill], axis=0)
+            self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
+            self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
 
-        return (x, y)
-
-    def next_train_batch(self, matrix=True):
+    def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
 
         while True:
@@ -51,30 +53,30 @@ class DataGenerator():
             self.train_index += self.batch_size
 
             y_train = self.dataset["train"]["gt"][index:until]
-            _, y_train = self.fill_batch("train", self.total_train, None, y_train)
+            x_train = pp.add_noise(y_train, self.max_text_length)
 
-            x_train = preproc.add_noise(y_train, self.max_text_length)
+            x_train = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_train]
 
-            if matrix:
-                x_train = [x.split() for x in x_train]
+            if self.ctc:
+                y_train = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_train]
 
-            x_train = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_train]
-            y_train = [preproc.encode(x, self.charset, self.max_text_length) for x in y_train]
+                x_train_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
+                y_train_len = np.asarray([len(np.trim_zeros(y_train[i])) for i in range(self.batch_size)])
 
-            x_train_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-            y_train_len = np.asarray([len(np.trim_zeros(y_train[i])) for i in range(self.batch_size)])
+                inputs = {
+                    "input": x_train,
+                    "labels": y_train,
+                    "input_length": x_train_len,
+                    "label_length": y_train_len
+                }
+                output = {"CTCloss": np.zeros(self.batch_size)}
+                yield (inputs, output)
 
-            inputs = {
-                "input": x_train,
-                "labels": y_train,
-                "input_length": x_train_len,
-                "label_length": y_train_len
-            }
-            output = {"CTCloss": np.zeros(self.batch_size)}
+            else:
+                y_train = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_train]
+                yield [x_train], [y_train]
 
-            yield (inputs, output)
-
-    def next_valid_batch(self, matrix=False):
+    def next_valid_batch(self):
         """Get the next batch from validation partition (yield)"""
 
         while True:
@@ -88,28 +90,28 @@ class DataGenerator():
             x_valid = self.dataset["valid"]["dt"][index:until]
             y_valid = self.dataset["valid"]["gt"][index:until]
 
-            x_valid, y_valid = self.fill_batch("valid", self.total_valid, x_valid, y_valid)
+            x_valid = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_valid]
 
-            if matrix:
-                x_valid = [x.split() for x in x_valid]
+            if self.ctc:
+                y_valid = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_valid]
 
-            x_valid = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_valid]
-            y_valid = [preproc.encode(x, self.charset, self.max_text_length) for x in y_valid]
+                x_valid_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
+                y_valid_len = np.asarray([len(np.trim_zeros(y_valid[i])) for i in range(self.batch_size)])
 
-            x_valid_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-            y_valid_len = np.asarray([len(np.trim_zeros(y_valid[i])) for i in range(self.batch_size)])
+                inputs = {
+                    "input": x_valid,
+                    "labels": y_valid,
+                    "input_length": x_valid_len,
+                    "label_length": y_valid_len
+                }
+                output = {"CTCloss": np.zeros(self.batch_size)}
+                yield (inputs, output)
 
-            inputs = {
-                "input": x_valid,
-                "labels": y_valid,
-                "input_length": x_valid_len,
-                "label_length": y_valid_len
-            }
-            output = {"CTCloss": np.zeros(self.batch_size)}
+            else:
+                y_valid = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_valid]
+                yield [x_valid], [y_valid]
 
-            yield (inputs, output)
-
-    def next_test_batch(self, matrix=False):
+    def next_test_batch(self):
         """Return model predict parameters"""
 
         while True:
@@ -123,16 +125,15 @@ class DataGenerator():
             x_test = self.dataset["test"]["dt"][index:until]
             y_test = self.dataset["test"]["gt"][index:until]
 
-            x_test, y_test = self.fill_batch("test", self.total_test, x_test, y_test)
-            w_test = [x.encode() for x in y_test]
+            x_test = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_test]
 
-            if matrix:
-                x_test = [x.split() for x in x_test]
+            if self.ctc:
+                w_test = [x.encode_onehot() for x in y_test]
+                y_test = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_test]
 
-            x_test = [preproc.encode(x, self.charset, self.max_text_length, matrix=matrix) for x in x_test]
-            y_test = [preproc.encode(x, self.charset, self.max_text_length) for x in y_test]
+                x_test_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
+                y_test_len = np.asarray([len(np.trim_zeros(y_test[i])) for i in range(self.batch_size)])
 
-            x_test_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-            y_test_len = np.asarray([len(np.trim_zeros(y_test[i])) for i in range(self.batch_size)])
-
-            yield [x_test, y_test, x_test_len, y_test_len, w_test]
+                yield [x_test, y_test, x_test_len, y_test_len, w_test]
+            else:
+                yield [x_test]

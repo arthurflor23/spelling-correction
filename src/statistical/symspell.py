@@ -16,7 +16,7 @@ Python port:
 import os
 import time
 import string
-from data import preproc
+from data import preproc as pp
 from symspellpy.symspellpy import SymSpell
 
 
@@ -35,7 +35,7 @@ class Symspell():
         start_time = time.time()
 
         with open(self.corpus_path, "w") as f:
-            f.write(preproc.parse_sentence(" ".join(corpus)))
+            f.write(pp.parse_sentence(" ".join(corpus)))
 
         self.symspell.create_dictionary(self.corpus_path)
 
@@ -69,7 +69,7 @@ class Symspell():
             for x in batch[i].split():
                 sugg = self.symspell.lookup(x, verbosity=0, max_edit_distance=self.max_edit_distance,
                                             transfer_casing=True) if x not in string.punctuation else None
-                splitted.append(preproc.organize_space(sugg[0].term if sugg else x))
+                splitted.append(pp.padding_space(sugg[0].term if sugg else x))
 
             corrected.append(" ".join(splitted))
         return corrected
