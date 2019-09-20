@@ -1,4 +1,4 @@
-# Text Correction
+<img src="https://github.com/arthurflor23/text-correction/blob/master/doc/image/header.png?raw=true">
 
 A Text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) (Edit Distance) and [TensorFlow 2.0](https://www.tensorflow.org/) (Neural Network). This project supports several text datasets, however it has a different methodology for training and validating all data, when compared to the Grammar Error Correction (GEC) methodology. Don't worry, this all is an automatic process in `transform` step.
 
@@ -39,17 +39,16 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
-* `--mode`: method to be used (symspell or network)
+* `--mode`: method to be used (symspell or seq2seq)
 
   `symspell`:
-    * `--N`: 2 by default
+    * `--N`: max edit distance (2 by default)
 
-  `network`:
-    * `--method`: if network mode: type of model (seq2seq, gcnn, gcnn_ctc)
-    * `--train`: if network mode: train the model (neural network)
-    * `--test`: if network mode: evaluate and predict sentences
-    * `--epochs`: if network mode: number of epochs
-    * `--batch_size`: if network mode: number of batches
+  `seq2seq`:
+        * `--train`: train the model
+        * `--test`: predict and evaluate sentences
+        * `--epochs`: number of epochs
+        * `--batch_size`: number of batches
 
 ## Tutorial (Google Colab/Drive)
 
