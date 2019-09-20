@@ -5,7 +5,7 @@ URL: https://github.com/samueljamesbell/m2-correct
 
 
 def read_dataset(file_name):
-    """Read the M2 file and return labels and sentences (ground truth and data)."""
+    """Read the M2 file and return labels and sentences (ground truth and data)"""
 
     train, valid, test = dict(), dict(), dict()
     train["gt"], train["dt"] = [], []
@@ -35,7 +35,7 @@ def read_dataset(file_name):
 
 
 def read_raw(file_name):
-    """Read the M2 file and return the sentences with the corrections."""
+    """Read the M2 file and return the sentences with the corrections"""
 
     with open(file_name, "r", encoding="utf-8") as f:
         lines = f.read().split("\n")
@@ -69,7 +69,7 @@ def apply_corrections(sentence, corrections):
 
 
 def _apply_correction(tokens, correction, offset):
-    """Apply a single correction to a list of tokens."""
+    """Apply a single correction to a list of tokens"""
 
     start_token_offset, end_token_offset, _, insertion = correction
     to_insert = insertion[0].split(" ")

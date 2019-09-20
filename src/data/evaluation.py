@@ -32,20 +32,20 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
     eval_corpus = "\n".join([
         f"Total test sentences: {dtgen.total_test}",
         f"{plus}",
-        f"Total time:           {total_time:.4f} sec",
-        f"Time per item:        {(total_time / dtgen.total_test):.4f} sec\n",
+        f"Total time:           {total_time:.8f} sec",
+        f"Time per item:        {(total_time / dtgen.total_test):.8f} sec\n",
         f"Metrics (before):",
-        f"Character Error Rate: {metrics[0][0]:.4f}",
-        f"Word Error Rate:      {metrics[0][1]:.4f}\n",
+        f"Character Error Rate: {metrics[0][0]:.8f}",
+        f"Word Error Rate:      {metrics[0][1]:.8f}\n",
         f"Metrics (after):",
-        f"Character Error Rate: {metrics[1][0]:.4f}",
-        f"Word Error Rate:      {metrics[1][1]:.4f}"
+        f"Character Error Rate: {metrics[1][0]:.8f}",
+        f"Word Error Rate:      {metrics[1][1]:.8f}"
     ])
 
-    pred_corpus = ""
+    pred_corpus = []
     for i in range(dtgen.total_test):
-        pred_corpus += f"GT {dtgen.dataset['test']['gt'][i]}\n"
-        pred_corpus += f"DT {dtgen.dataset['test']['dt'][i]}\n"
-        pred_corpus += f"PD {new_dt[i]}\n\n"
+        pred_corpus.append(f"GT {dtgen.dataset['test']['gt'][i]}")
+        pred_corpus.append(f"DT {dtgen.dataset['test']['dt'][i]}")
+        pred_corpus.append(f"PD {new_dt[i]}\n")
 
-    return (eval_corpus, pred_corpus)
+    return (pred_corpus, eval_corpus)

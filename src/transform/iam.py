@@ -36,6 +36,6 @@ class Transform():
             lines.append(self.lines[partition])
 
         lines = list(set(lines))
-        lines = pp.normalize_text(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = pp.standardize(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         return lines

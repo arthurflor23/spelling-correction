@@ -2,37 +2,35 @@
 Provides options via the command line to perform project tasks.
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
-* `--mode`: method to be used (symspell or network)
+* `--mode`: method to be used (symspell or seq2seq)
+
     `symspell`:
-        * `--N`: 2 by default
-    `network`:
-        * `--method`: if network mode: type of model (seq2seq, gcnn, gcnn_ctc)
-        * `--train`: if network mode: train the model (neural network)
-        * `--test`: if network mode: evaluate and predict sentences
-        * `--epochs`: if network mode: number of epochs
-        * `--batch_size`: if network mode: number of batches
+        * `--N`: max edit distance (2 by default)
+
+    `seq2seq`:
+        * `--train`: train the model
+        * `--test`: predict and evaluate sentences
+        * `--epochs`: number of epochs
+        * `--batch_size`: number of batches
 """
 
 import os
 import time
-import string
 import argparse
 import importlib
 
 from data import preproc as pp, evaluation
-from network import callbacks
+from network import callbacks, seq2seq
 from statistical import symspell
 from data.generator import DataGenerator
-from contextlib import redirect_stdout
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="all")
     parser.add_argument("--transform", action="store_true", default=False)
-    parser.add_argument("--mode", type=str, default="symspell")
+    parser.add_argument("--mode", type=str, default="seq2seq")
     parser.add_argument("--N", type=int, default=2)
-    parser.add_argument("--method", type=str, default="seq2seq")
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--train", action="store_true", default=False)
@@ -42,11 +40,11 @@ if __name__ == "__main__":
     raw_path = os.path.join("..", "raw")
     data_path = os.path.join("..", "data", args.dataset)
     output_path = os.path.join("..", "output", args.dataset, args.mode)
-    m2_src = os.path.join(data_path, f"{args.dataset}.m2")
+    m2_src = os.path.join(data_path, f"{args.dataset}.txt")
 
     max_text_length = 128
-    charset_base = string.printable[:95]
-    charset_special = "ÀÁÂÃÅÇÈÉÊËÍÎÏÒÓÔÖÚÜàáâãäåçèéêëìíîïñòóôõöùúûüý"
+    charset_base = "".join([chr(i) for i in range(32, 127)])
+    charset_special = "".join([chr(i) for i in range(191, 256)])
 
     if args.transform:
         dataset_list = next(os.walk(raw_path))[1] if args.dataset == "all" else [args.dataset]
@@ -76,27 +74,35 @@ if __name__ == "__main__":
         valid = pp.shuffle(valid)
         test = pp.shuffle(test)
 
+        valid_noised = [pp.add_noise([x], charset_base, max_text_length)[0] for x in valid]
+        test_noised = [pp.add_noise([x], charset_base, max_text_length)[0] for x in test]
+
+        current_metric = evaluation.ocr_metrics(test_noised, test)
+
         info = "\n".join([
             f"{args.dataset} partitions (number of sentences)",
-            f"Train:        {len(train)}",
-            f"Validation:   {len(valid)}",
-            f"Test:         {len(test)}\n"
+            f"Total:      {len(train) + len(valid) + len(test)}\n",
+            f"Train:      {len(train)}",
+            f"Validation: {len(valid)}",
+            f"Test:       {len(test)}\n",
+            f"Current Error Rate:",
+            f"Test CER: {current_metric[0]:.8f}",
+            f"Test WER: {current_metric[1]:.8f}"
         ])
 
-        print(f"\n{info}")
+        print(f"\n{info}\n")
         print(f"{args.dataset} transformed dataset is saving...")
         os.makedirs(data_path, exist_ok=True)
 
         with open(m2_src, "w") as f:
-            f.write("TR_L " + "\nTR_L ".join(train) + "\n")
+            for item in train:
+                f.write(f"TR_L {item}\n")
 
-            for item in valid:
-                f.write(f"VA_L {item}\n")
-                f.write(f"VA_P {pp.add_noise([item], max_text_length)[0]}\n")
+            for item, noise in zip(valid, valid_noised):
+                f.write(f"VA_L {item}\nVA_P {noise}\n")
 
-            for item in test:
-                f.write(f"TE_L {item}\n")
-                f.write(f"TE_P {pp.add_noise([item], max_text_length)[0]}\n")
+            for item, noise in zip(test, test_noised):
+                f.write(f"TE_L {item}\nTE_P {noise}\n")
 
         with open(os.path.join(data_path, "about.txt"), "w") as f:
             f.write(info)
@@ -104,14 +110,14 @@ if __name__ == "__main__":
         print(f"Transformation finished.")
 
     else:
+        os.makedirs(output_path, exist_ok=True)
+
         dtgen = DataGenerator(m2_src=m2_src,
                               batch_size=args.batch_size,
                               charset=(charset_base + charset_special),
-                              max_text_length=max_text_length,
-                              ctc=("ctc" in args.method))
+                              max_text_length=max_text_length)
 
         if args.mode == "symspell":
-            os.makedirs(output_path, exist_ok=True)
             sspell = symspell.Symspell(output_path, args.N)
             train_corpus = sspell.load(corpus=dtgen.dataset["train"]["gt"])
 
@@ -126,7 +132,7 @@ if __name__ == "__main__":
             old_metric = evaluation.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
             new_metric = evaluation.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
 
-            eval_corpus, pred_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time,
+            pred_corpus, eval_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time,
                                                          plus=f"Max Edit distance:\t{args.N}\n")
 
             with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
@@ -136,23 +142,17 @@ if __name__ == "__main__":
             with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                 lg.write(pred_corpus)
 
-        elif args.mode == "network":
-            output_path = output_path.replace(args.mode, args.method)
-            os.makedirs(output_path, exist_ok=True)
-
-            nn = importlib.import_module(f"network.{args.method}")
+        elif args.mode == "seq2seq":
+            # dtgen.charset has `SOS + charset_base + charset_special + EOS`
+            model = seq2seq.Seq2SeqModel(units=64, charset=dtgen.charset)
+            model.compile()
 
             checkpoint = "checkpoint_weights.hdf5"
-            cbs = callbacks.setup(logdir=output_path, hdf5_target=checkpoint)
+            model.load_checkpoint(target=os.path.join(output_path, checkpoint))
 
-            model = nn.generate_model(max_text_length=dtgen.max_text_length,
-                                      charset_length=len(dtgen.charset),
-                                      checkpoint=os.path.join(output_path, checkpoint))
             if args.train:
-                with open(os.path.join(output_path, "summary.txt"), "w") as f:
-                    model.summary()
-                    with redirect_stdout(f):
-                        model.summary()
+                model.summary(output_path, "summary.txt")
+                cbs = callbacks.setup(logdir=output_path, hdf5=checkpoint)
 
                 start_time = time.time()
                 h = model.fit_generator(generator=dtgen.next_train_batch(),
@@ -166,26 +166,30 @@ if __name__ == "__main__":
                 total_time = time.time() - start_time
 
                 loss = h.history['loss']
-                val_loss = h.history['val_loss']
+                accuracy = h.history['accuracy']
 
-                min_val_loss = min(val_loss)
-                min_val_loss_i = val_loss.index(min_val_loss)
+                val_loss = h.history['val_loss']
+                val_accuracy = h.history['val_accuracy']
+
+                best_epoch_index = val_accuracy.index(max(val_accuracy))
 
                 train_corpus = "\n".join([
                     f"Total train sentences:      {dtgen.total_train}",
                     f"Total validation sentences: {dtgen.total_valid}",
                     f"Batch:                      {dtgen.batch_size}\n",
-                    f"Total time:                 {total_time:.4f} sec",
-                    f"Average time per epoch:     {(total_time / len(loss)):.4f} sec\n",
-                    f"Total epochs:               {len(loss)}",
-                    f"Best epoch                  {min_val_loss_i + 1}\n",
-                    f"Training loss:              {loss[min_val_loss_i]:.4f}",
-                    f"Validation loss:            {min_val_loss:.4f}"
+                    f"Total epochs:               {len(accuracy)}",
+                    f"Total time:                 {total_time:.8f} sec",
+                    f"Average time per epoch:     {(total_time / len(accuracy)):.8f} sec\n",
+                    f"Best epoch                  {best_epoch_index + 1}",
+                    f"Training loss:              {loss[best_epoch_index]:.8f}",
+                    f"Training accuracy:          {accuracy[best_epoch_index]:.8f}\n",
+                    f"Validation loss:            {val_loss[best_epoch_index]:.8f}",
+                    f"Validation accuracy:        {val_accuracy[best_epoch_index]:.8f}"
                 ])
 
                 with open(os.path.join(output_path, "train.txt"), "w") as lg:
-                    print(train_corpus)
                     lg.write(train_corpus)
+                    print(train_corpus)
 
             elif args.test:
                 start_time = time.time()
@@ -195,17 +199,15 @@ if __name__ == "__main__":
                                                    verbose=1)
                 total_time = time.time() - start_time
 
-                if not dtgen.ctc:
-                    predicts = [pp.decode_onehot(x, dtgen.charset) for x in predicts]
-
                 old_metric = evaluation.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
                 new_metric = evaluation.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
 
-                eval_corpus, pred_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time)
-
-                with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
-                    print(eval_corpus)
-                    lg.write(eval_corpus)
+                pred_corpus, eval_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time)
 
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
-                    lg.write(pred_corpus)
+                    lg.write("\n".join(pred_corpus))
+                    print("\n".join(pred_corpus[:30]))
+
+                with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                    lg.write(eval_corpus)
+                    print(eval_corpus)

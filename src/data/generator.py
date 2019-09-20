@@ -1,4 +1,4 @@
-"""Generator function to supply train/test with text data."""
+"""Generator function to supply train/test with text data"""
 
 import numpy as np
 from data import preproc as pp, m2
@@ -7,16 +7,14 @@ from data import preproc as pp, m2
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, charset, max_text_length, ctc=False):
+    def __init__(self, m2_src, batch_size, charset, max_text_length):
         self.dataset = m2.read_dataset(m2_src)
         self.batch_size = batch_size
-        self.charset = charset
-        self.max_text_length = max_text_length
-        self.ctc = ctc
 
-        # Normalize sentences of the test partition (only to custom predicts)
-        # self.dataset["test"]["dt"] = pp.normalize_text(self.dataset["test"]["dt"], charset, max_text_length)
-        # self.dataset["test"]["gt"] = pp.normalize_text(self.dataset["test"]["gt"], charset, max_text_length)
+        self.SOS, self.EOS = "«", "»"
+        self.charset = self.SOS + charset + self.EOS
+        self.padding_length = len(self.SOS) + len(self.EOS)
+        self.max_text_length = max_text_length + self.padding_length
 
         self.full_fill_partition("train")
         self.full_fill_partition("valid")
@@ -41,6 +39,34 @@ class DataGenerator():
             self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
             self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
 
+    def padding(self, batch, max_text_length, pre=None, post=None):
+        """Add SOS and EOS chars to the sentences (padding)"""
+
+        batch = batch.copy()
+
+        for i in range(len(batch)):
+            batch[i] = self.SOS + batch[i] if pre else batch[i]
+            batch[i] += self.EOS * (max_text_length - len(batch[i]))
+
+        return batch
+
+    def encode_onehot(self, batch, charset, max_text_length, reverse=False):
+        """Encode to one-hot"""
+
+        encoded = np.zeros((len(batch), max_text_length, len(charset)))
+
+        for y in range(len(batch)):
+            for i, char in enumerate(batch[y]):
+                try:
+                    encoded[y, i, charset.find(char)] = 1
+                except KeyError:
+                    pass
+
+            if reverse:
+                encoded[y] = encoded[y][::-1]
+
+        return encoded
+
     def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
 
@@ -53,28 +79,17 @@ class DataGenerator():
             self.train_index += self.batch_size
 
             y_train = self.dataset["train"]["gt"][index:until]
-            x_train = pp.add_noise(y_train, self.max_text_length)
+            x_train = pp.add_noise(y_train, max_text_length=(self.max_text_length - self.padding_length))
 
-            x_train = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_train]
+            x_train = self.padding(x_train, self.max_text_length, post=self.EOS)
+            x_train_decoder = self.padding(y_train, self.max_text_length, pre=self.SOS, post=self.EOS)
+            y_train = self.padding(y_train, self.max_text_length, post=self.EOS)
 
-            if self.ctc:
-                y_train = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_train]
+            x_train = self.encode_onehot(x_train, self.charset, self.max_text_length, reverse=True)
+            x_train_decoder = self.encode_onehot(x_train_decoder, self.charset, self.max_text_length)
+            y_train = self.encode_onehot(y_train, self.charset, self.max_text_length)
 
-                x_train_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-                y_train_len = np.asarray([len(np.trim_zeros(y_train[i])) for i in range(self.batch_size)])
-
-                inputs = {
-                    "input": x_train,
-                    "labels": y_train,
-                    "input_length": x_train_len,
-                    "label_length": y_train_len
-                }
-                output = {"CTCloss": np.zeros(self.batch_size)}
-                yield (inputs, output)
-
-            else:
-                y_train = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_train]
-                yield [x_train], [y_train]
+            yield [x_train, x_train_decoder], [y_train]
 
     def next_valid_batch(self):
         """Get the next batch from validation partition (yield)"""
@@ -90,26 +105,15 @@ class DataGenerator():
             x_valid = self.dataset["valid"]["dt"][index:until]
             y_valid = self.dataset["valid"]["gt"][index:until]
 
-            x_valid = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_valid]
+            x_valid = self.padding(x_valid, self.max_text_length, post=self.EOS)
+            x_valid_decoder = self.padding(y_valid, self.max_text_length, pre=self.SOS, post=self.EOS)
+            y_valid = self.padding(y_valid, self.max_text_length, post=self.EOS)
 
-            if self.ctc:
-                y_valid = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_valid]
+            x_valid = self.encode_onehot(x_valid, self.charset, self.max_text_length, reverse=True)
+            x_valid_decoder = self.encode_onehot(x_valid_decoder, self.charset, self.max_text_length)
+            y_valid = self.encode_onehot(y_valid, self.charset, self.max_text_length)
 
-                x_valid_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-                y_valid_len = np.asarray([len(np.trim_zeros(y_valid[i])) for i in range(self.batch_size)])
-
-                inputs = {
-                    "input": x_valid,
-                    "labels": y_valid,
-                    "input_length": x_valid_len,
-                    "label_length": y_valid_len
-                }
-                output = {"CTCloss": np.zeros(self.batch_size)}
-                yield (inputs, output)
-
-            else:
-                y_valid = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_valid]
-                yield [x_valid], [y_valid]
+            yield [x_valid, x_valid_decoder], [y_valid]
 
     def next_test_batch(self):
         """Return model predict parameters"""
@@ -123,17 +127,7 @@ class DataGenerator():
             self.test_index += self.batch_size
 
             x_test = self.dataset["test"]["dt"][index:until]
-            y_test = self.dataset["test"]["gt"][index:until]
+            x_test = self.padding(x_test, self.max_text_length, post=self.EOS)
+            x_test = self.encode_onehot(x_test, self.charset, self.max_text_length, reverse=True)
 
-            x_test = [pp.encode_onehot(x, self.charset, self.max_text_length, reverse=True) for x in x_test]
-
-            if self.ctc:
-                w_test = [x.encode_onehot() for x in y_test]
-                y_test = [pp.encode_onehot(x, self.charset, self.max_text_length) for x in y_test]
-
-                x_test_len = np.asarray([self.max_text_length for _ in range(self.batch_size)])
-                y_test_len = np.asarray([len(np.trim_zeros(y_test[i])) for i in range(self.batch_size)])
-
-                yield [x_test, y_test, x_test_len, y_test_len, w_test]
-            else:
-                yield [x_test]
+            yield [x_test]

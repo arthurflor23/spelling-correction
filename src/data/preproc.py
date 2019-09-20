@@ -1,63 +1,11 @@
-"""Methods to help manager data development."""
+"""Methods to help manager data development"""
 
-import re
 import string
 import numpy as np
 
 
-def encode_ctc(text, charset, max_text_length):
-    """Encode text array (sparse)."""
-
-    if not isinstance(text, list):
-        text = [text]
-
-    pad_encoded = np.zeros(shape=(max_text_length, max_text_length))
-
-    for index, item in enumerate(text):
-        encoded = [float(charset.find(x)) for x in item if charset.find(x) > -1]
-        encoded = [float(charset.find("&"))] if len(encoded) == 0 else encoded
-        pad_encoded[index][0:len(encoded)] = encoded
-
-    return pad_encoded
-
-
-def decode_onehot(text, charset, reverse=False):
-    """Decode from one-hot."""
-
-    text_encoded = np.array(text).argmax(axis=-1)
-    decoded = []
-
-    for index in text_encoded:
-        try:
-            decoded.append(charset[index])
-        except KeyError:
-            pass
-
-    if reverse:
-        decoded = decoded[::-1]
-
-    return "".join(decoded)
-
-
-def encode_onehot(text, charset, max_text_length, reverse=False):
-    """Encode to one-hot."""
-
-    encoded = np.zeros((max_text_length, len(charset)), dtype=np.bool)
-
-    for i, char in enumerate(text):
-        try:
-            encoded[i, charset.find(char)] = 1
-        except KeyError:
-            pass
-
-    if reverse:
-        encoded = encoded[::-1]
-
-    return encoded
-
-
 def shuffle(array):
-    """Modify a sequence by shuffling its contents."""
+    """Modify a sequence by shuffling its contents"""
 
     arange = np.arange(0, len(array))
     np.random.shuffle(arange)
@@ -70,24 +18,24 @@ def shuffle(array):
     return new_array
 
 
-def parse_sentence(text, splitted=False):
-    """Remove punctuation marks."""
+def padding_space(text):
+    """Organize/add spaces around punctuation marks"""
 
-    matches = re.findall(r"(([^\W_]|['’])+)", text)
-    matches = [match[0] for match in matches]
+    text = " ".join(text.split()).replace(" '", "'").replace("' ", "'")
+    text = text.replace("«", "").replace("»", "")
 
-    if splitted:
-        return matches
+    for y in text:
+        if y in string.punctuation.replace("'", ""):
+            text = text.replace(y, f" {y} ")
 
-    return " ".join(matches)
+    return " ".join(text.split())
 
 
-def normalize_text(sentences, charset, max_text_length):
-    """Normalize sentences: replace some stuffs and split if necessary."""
+def standardize(sentences, charset, max_text_length):
+    """Standardize sentences: replace some stuffs and split if necessary"""
 
     text_list = []
     min_text_length = 3
-    max_text_length -= (min_text_length * 2)
 
     for i in range(len(sentences)):
         sentences[i] = "".join([y for y in sentences[i] if y in charset])
@@ -117,20 +65,6 @@ def normalize_text(sentences, charset, max_text_length):
     return text_list
 
 
-def padding_space(text):
-    """Organize/add spaces around punctuation marks."""
-
-    text = text.replace("«", "").replace("»", "").replace("“", "\"")
-    text = text.replace("æ", "").replace("ø", "").replace("ß", "")
-    text = text.replace(" '", "").replace("'s", "s").replace("'", "")
-
-    for y in text:
-        if y in string.punctuation:
-            text = text.replace(y, f" {y} ")
-
-    return " ".join(text.split())
-
-
 """
 Method to apply text random noise error (adapted):
     Author: Tal Weiss
@@ -140,35 +74,33 @@ Method to apply text random noise error (adapted):
 """
 
 
-def add_noise(batch, max_text_length):
+def add_noise(batch, charset=None, max_text_length=128, level=3):
     """Add some artificial spelling mistakes to the string"""
 
-    amount_of_noise = 0.2 * max_text_length
-    charset = list(string.whitespace[0] + string.digits + string.ascii_letters)
+    charset = charset if charset else string.printable[:-5]
+    charset = list(charset)
 
     for i in range(len(batch)):
-        for _ in range(2):
+        for _ in range(level):
             # Replace a character with a random character
-            if np.random.rand() < amount_of_noise * len(batch[i]):
-                random_char_position = np.random.randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
+            random_char_position = np.random.randint(len(batch[i]))
+            batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
 
             # Transpose 2 characters
-            if np.random.rand() < amount_of_noise * len(batch[i]):
-                random_char_position = np.random.randint(len(batch[i]) - 1)
-                batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
-                            batch[i][random_char_position] + batch[i][random_char_position + 2:])
+            random_char_position = np.random.randint(len(batch[i]) - 1)
+            batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
+                        batch[i][random_char_position] + batch[i][random_char_position + 2:])
 
-        # Add a random character
-        if len(batch[i]) < max_text_length and np.random.rand() < amount_of_noise * len(batch[i]):
-            random_char_position = np.random.randint(len(batch[i]))
-            batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position:]
-
-        # Delete a character
-        if np.random.rand() < amount_of_noise * len(batch[i]):
+            # Delete a character
             random_char_position = np.random.randint(len(batch[i]))
             batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
 
+            # Add a random character
+            if len(batch[i]) < max_text_length:
+                random_char_position = np.random.randint(len(batch[i]))
+                batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position:]
+
         batch[i] = padding_space(batch[i])
+        batch[i] = batch[i][:max_text_length]
 
     return batch

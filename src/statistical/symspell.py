@@ -14,6 +14,7 @@ Python port:
 """
 
 import os
+import re
 import time
 import string
 from data import preproc as pp
@@ -21,7 +22,7 @@ from symspellpy.symspellpy import SymSpell
 
 
 class Symspell():
-    """Symspell class presents creation of a dictionary and autorrect texts through DataGenerator support."""
+    """Symspell class presents creation of a dictionary and autorrect texts through DataGenerator support"""
 
     def __init__(self, output_path, max_edit_distance=2, prefix_length=5):
         self.corpus_path = os.path.join(output_path, "corpus.data")
@@ -35,7 +36,9 @@ class Symspell():
         start_time = time.time()
 
         with open(self.corpus_path, "w") as f:
-            f.write(pp.parse_sentence(" ".join(corpus)))
+            matches = re.findall(r"(([^\W_]|['’])+)", " ".join(corpus))
+            matches = [match[0] for match in matches]
+            f.write(" ".join(matches))
 
         self.symspell.create_dictionary(self.corpus_path)
 
@@ -48,8 +51,8 @@ class Symspell():
         train_corpus = "\n".join([
             f"Total train sentences: {len(corpus)}",
             f"Total tokens:          {len(self.symspell.words.items())}\n",
-            f"Total time:            {total_time:.4f} sec",
-            f"Time per sentence:     {(total_time / len(corpus)):.4f} sec\n",
+            f"Total time:            {total_time:.8f} sec",
+            f"Time per sentence:     {(total_time / len(corpus)):.8f} sec\n",
         ])
 
         return train_corpus

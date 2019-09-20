@@ -21,7 +21,7 @@ class Transform():
             lines += m2.read_raw(f)
 
         lines = list(set(lines))
-        lines = pp.normalize_text(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = pp.standardize(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)
