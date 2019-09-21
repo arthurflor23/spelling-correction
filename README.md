@@ -1,14 +1,13 @@
 <img src="https://github.com/arthurflor23/text-correction/blob/master/doc/image/header.png?raw=true">
 
-A Text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) (Edit Distance) and [TensorFlow 2.0](https://www.tensorflow.org/) (Neural Network). This project supports several text datasets, however it has a different methodology for training and validating all data, when compared to the Grammar Error Correction (GEC) methodology. Don't worry, this all is an automatic process in `transform` step.
+A text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) and [TensorFlow 2.0](https://www.tensorflow.org/) (seq2seq). This project supports several text datasets and uses a noise function to create more data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
 
-This project has a Statistical Language Model approach and a Neural Network approach, both with the purpose of text correction (simple approach to the spell checker).
+This project has a Statistical Language Model approach and a Neural Network approach, both with the purpose of simple text correction (a simple approach to the spell checker).
 
 **Notes**:
 1. All **references** are commented in the code.
-2. This project presents its own partitioning and training methodology.
-3. Check out the presentation in the **doc** folder.
-4. For more information and demo run step by step (neural network), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
+2. Check out the presentation in the **doc** folder.
+3. For more information and demo run step by step (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
 
 ## Datasets supported
 
@@ -42,14 +41,19 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 * `--mode`: method to be used (symspell or seq2seq)
 
   `symspell`:
+
     * `--N`: max edit distance (2 by default)
 
   `seq2seq`:
+
         * `--train`: train the model
+
         * `--test`: predict and evaluate sentences
+
         * `--epochs`: number of epochs
+
         * `--batch_size`: number of batches
 
 ## Tutorial (Google Colab/Drive)
 
-A Jupyter Notebook is available to demo run (neural network), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
+A Jupyter Notebook is available to demo run (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
