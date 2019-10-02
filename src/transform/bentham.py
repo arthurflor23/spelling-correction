@@ -13,7 +13,7 @@ class Transform():
         self.max_text_length = max_text_length
         self.partitions = dict()
 
-    def build(self):
+    def build(self, balance=True):
         self.partitions["train"] = self._build_partition("TrainLines.lst")
         self.partitions["valid"] = self._build_partition("ValidationLines.lst")
         self.partitions["test"] = self._build_partition("TestLines.lst")
@@ -30,6 +30,7 @@ class Transform():
                 lines.append(line)
 
         lines = list(set(lines))
-        lines = pp.standardize(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = pp.padding_punctuation(lines)
+        lines = pp.split_by_max_length(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         return lines

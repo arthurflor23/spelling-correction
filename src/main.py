@@ -2,12 +2,12 @@
 Provides options via the command line to perform project tasks.
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
-* `--mode`: method to be used (symspell or seq2seq)
+* `--mode`: method to be used:
 
     `symspell`:
         * `--N`: max edit distance (2 by default)
 
-    `seq2seq`:
+    `seq2seq`, `transformer`:
         * `--train`: train the model
         * `--test`: predict and evaluate sentences
         * `--epochs`: number of epochs
@@ -19,10 +19,11 @@ import time
 import argparse
 import importlib
 
-from data import preproc as pp, evaluation
-from network import callbacks, seq2seq
-from statistical import symspell
+from tool.symspell import Symspell
+from tool.seq2seq import Seq2SeqAttention
+from tool.transformer import Transformer
 from data.generator import DataGenerator
+from data import preproc as pp, evaluation
 
 
 if __name__ == "__main__":
@@ -38,13 +39,13 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     raw_path = os.path.join("..", "raw")
-    data_path = os.path.join("..", "data", args.dataset)
+    data_path = os.path.join("..", "data")
     output_path = os.path.join("..", "output", args.dataset, args.mode)
     m2_src = os.path.join(data_path, f"{args.dataset}.txt")
 
     max_text_length = 128
     charset_base = "".join([chr(i) for i in range(32, 127)])
-    charset_special = "".join([chr(i) for i in range(191, 256)])
+    charset_special = "".join([chr(i) for i in range(192, 256)])
 
     if args.transform:
         dataset_list = next(os.walk(raw_path))[1] if args.dataset == "all" else [args.dataset]
@@ -61,7 +62,8 @@ if __name__ == "__main__":
                 tfm = mod.Transform(source=source_path,
                                     charset=(charset_base + charset_special),
                                     max_text_length=max_text_length)
-                tfm.build()
+
+                tfm.build(balance=(args.dataset != "all"))
                 train += tfm.partitions["train"]
                 valid += tfm.partitions["valid"]
                 test += tfm.partitions["test"]
@@ -74,27 +76,28 @@ if __name__ == "__main__":
         valid = pp.shuffle(valid)
         test = pp.shuffle(test)
 
-        valid_noised = [pp.add_noise([x], charset_base, max_text_length)[0] for x in valid]
-        test_noised = [pp.add_noise([x], charset_base, max_text_length)[0] for x in test]
+        valid_noised = [pp.add_noise([x], max_text_length)[0] for x in valid]
+        test_noised = [pp.add_noise([x], max_text_length)[0] for x in test]
 
         current_metric = evaluation.ocr_metrics(test_noised, test)
 
         info = "\n".join([
-            f"{args.dataset} partitions (number of sentences)",
-            f"Total:      {len(train) + len(valid) + len(test)}\n",
-            f"Train:      {len(train)}",
-            f"Validation: {len(valid)}",
-            f"Test:       {len(test)}\n",
-            f"Current Error Rate:",
-            f"Test CER: {current_metric[0]:.8f}",
-            f"Test WER: {current_metric[1]:.8f}"
+            f"#### {args.dataset} partitions (number of sentences)",
+            f"#### Total:      {len(train) + len(valid) + len(test)}\n",
+            f"#### Train:      {len(train)}",
+            f"#### Validation: {len(valid)}",
+            f"#### Test:       {len(test)}\n",
+            f"#### Current Error Rate:",
+            f"#### Test CER: {current_metric[0]:.8f}",
+            f"#### Test WER: {current_metric[1]:.8f}\n"
         ])
 
-        print(f"\n{info}\n")
-        print(f"{args.dataset} transformed dataset is saving...")
+        print(info, f"\n{args.dataset} transformed dataset is saving...")
         os.makedirs(data_path, exist_ok=True)
 
         with open(m2_src, "w") as f:
+            f.write(f"{info}\n\n")
+
             for item in train:
                 f.write(f"TR_L {item}\n")
 
@@ -103,9 +106,6 @@ if __name__ == "__main__":
 
             for item, noise in zip(test, test_noised):
                 f.write(f"TE_L {item}\nTE_P {noise}\n")
-
-        with open(os.path.join(data_path, "about.txt"), "w") as f:
-            f.write(info)
 
         print(f"Transformation finished.")
 
@@ -118,7 +118,7 @@ if __name__ == "__main__":
                               max_text_length=max_text_length)
 
         if args.mode == "symspell":
-            sspell = symspell.Symspell(output_path, args.N)
+            sspell = Symspell(output_path, args.N)
             train_corpus = sspell.load(corpus=dtgen.dataset["train"]["gt"])
 
             with open(os.path.join(output_path, "train.txt"), "w") as lg:
@@ -142,9 +142,15 @@ if __name__ == "__main__":
             with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                 lg.write(pred_corpus)
 
-        elif args.mode == "seq2seq":
-            # dtgen.charset has `SOS + charset_base + charset_special + EOS`
-            model = seq2seq.Seq2SeqModel(units=64, charset=dtgen.charset)
+        else:
+            if args.mode == "transformer":
+                model = Transformer(num_layers=2, units=128, num_heads=2,
+                                    dropout=0.1, tokenizer=dtgen.tokenizer)
+
+            elif args.mode == "seq2seq":
+                dtgen.one_hot_process(True)
+                model = Seq2SeqAttention(units=128, dropout=0.1, tokenizer=dtgen.tokenizer)
+
             model.compile()
 
             checkpoint = "checkpoint_weights.hdf5"
@@ -152,7 +158,7 @@ if __name__ == "__main__":
 
             if args.train:
                 model.summary(output_path, "summary.txt")
-                cbs = callbacks.setup(logdir=output_path, hdf5=checkpoint)
+                callbacks = model.get_callbacks(logdir=output_path, hdf5=checkpoint, verbose=1)
 
                 start_time = time.time()
                 h = model.fit_generator(generator=dtgen.next_train_batch(),
@@ -160,7 +166,7 @@ if __name__ == "__main__":
                                         steps_per_epoch=dtgen.train_steps,
                                         validation_data=dtgen.next_valid_batch(),
                                         validation_steps=dtgen.valid_steps,
-                                        callbacks=cbs,
+                                        callbacks=callbacks,
                                         shuffle=True,
                                         verbose=1)
                 total_time = time.time() - start_time
@@ -171,6 +177,8 @@ if __name__ == "__main__":
                 val_loss = h.history['val_loss']
                 val_accuracy = h.history['val_accuracy']
 
+                time_epoch = (total_time / len(accuracy))
+                total_item = (dtgen.total_train + dtgen.total_valid)
                 best_epoch_index = val_accuracy.index(max(val_accuracy))
 
                 train_corpus = "\n".join([
@@ -179,7 +187,8 @@ if __name__ == "__main__":
                     f"Batch:                      {dtgen.batch_size}\n",
                     f"Total epochs:               {len(accuracy)}",
                     f"Total time:                 {total_time:.8f} sec",
-                    f"Average time per epoch:     {(total_time / len(accuracy)):.8f} sec\n",
+                    f"Time per epoch:             {time_epoch:.8f} sec",
+                    f"Time per item:              {(time_epoch / total_item):.8f} sec\n",
                     f"Best epoch                  {best_epoch_index + 1}",
                     f"Training loss:              {loss[best_epoch_index]:.8f}",
                     f"Training accuracy:          {accuracy[best_epoch_index]:.8f}\n",

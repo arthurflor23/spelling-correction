@@ -1,24 +1,20 @@
 """Generator function to supply train/test with text data"""
 
 import numpy as np
+import tensorflow as tf
 from data import preproc as pp, m2
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, charset, max_text_length):
-        self.dataset = m2.read_dataset(m2_src)
+    def __init__(self, m2_src, batch_size, charset, max_text_length=128):
+        self.tokenizer = Tokenizer(charset, max_text_length)
         self.batch_size = batch_size
 
-        self.SOS, self.EOS = "«", "»"
-        self.charset = self.SOS + charset + self.EOS
-        self.padding_length = len(self.SOS) + len(self.EOS)
-        self.max_text_length = max_text_length + self.padding_length
-
-        self.full_fill_partition("train")
-        self.full_fill_partition("valid")
-        self.full_fill_partition("test")
+        self.dataset = m2.read_dataset(m2_src)
+        self._full_fill_dataset()
 
         self.total_train = len(self.dataset["train"]["gt"])
         self.total_valid = len(self.dataset["valid"]["gt"])
@@ -29,43 +25,42 @@ class DataGenerator():
         self.test_steps = np.maximum(self.total_test // self.batch_size, 1)
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
+        self.one_hot_process(active=False)
 
-    def full_fill_partition(self, pt):
-        """Make full fill partition up to batch size and steps"""
+    def _full_fill_dataset(self):
+        """Make full fill dataset up to batch size and steps"""
 
-        while len(self.dataset[pt]["gt"]) % self.batch_size:
-            i = np.random.choice(np.arange(0, len(self.dataset[pt]["gt"])), 1)[0]
+        for pt in ["train", "valid", "test"]:
+            while len(self.dataset[pt]["gt"]) % self.batch_size:
+                i = np.random.choice(np.arange(0, len(self.dataset[pt]["gt"])), 1)[0]
 
-            self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
-            self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
+                self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
+                self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
 
-    def padding(self, batch, max_text_length, pre=None, post=None):
-        """Add SOS and EOS chars to the sentences (padding)"""
+    def one_hot_process(self, active=True):
+        self.one_hot = active
 
-        batch = batch.copy()
+    def tokenize_and_prepare(self, sentences, sos=False, eos=False, add_noise=False, reverse=False):
+        """Prepare inputs to feed the model"""
 
-        for i in range(len(batch)):
-            batch[i] = self.SOS + batch[i] if pre else batch[i]
-            batch[i] += self.EOS * (max_text_length - len(batch[i]))
+        new_sentences = sentences.copy()
+        sos = self.tokenizer.SOS_TK if sos else ""
+        eos = self.tokenizer.EOS_TK if eos else ""
 
-        return batch
+        for i in range(len(new_sentences)):
+            if add_noise:
+                new_sentences[i] = pp.add_noise([new_sentences[i]], self.tokenizer.maxlen)[0]
 
-    def encode_onehot(self, batch, charset, max_text_length, reverse=False):
-        """Encode to one-hot"""
-
-        encoded = np.zeros((len(batch), max_text_length, len(charset)))
-
-        for y in range(len(batch)):
-            for i, char in enumerate(batch[y]):
-                try:
-                    encoded[y, i, charset.find(char)] = 1
-                except KeyError:
-                    pass
+            new_sentences[i] = self.tokenizer.encode(sos + new_sentences[i] + eos)
+            new_sentences[i] = pad_sequences([new_sentences[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
 
             if reverse:
-                encoded[y] = encoded[y][::-1]
+                new_sentences[i] = new_sentences[i][::-1]
 
-        return encoded
+            if self.one_hot:
+                new_sentences[i] = self.tokenizer.encode_one_hot(new_sentences[i])
+
+        return np.array(new_sentences)
 
     def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
@@ -78,21 +73,16 @@ class DataGenerator():
             until = self.train_index + self.batch_size
             self.train_index += self.batch_size
 
-            y_train = self.dataset["train"]["gt"][index:until]
-            x_train = pp.add_noise(y_train, max_text_length=(self.max_text_length - self.padding_length))
+            targets = self.dataset["train"]["gt"][index:until]
 
-            x_train = self.padding(x_train, self.max_text_length, post=self.EOS)
-            x_train_decoder = self.padding(y_train, self.max_text_length, pre=self.SOS, post=self.EOS)
-            y_train = self.padding(y_train, self.max_text_length, post=self.EOS)
+            inputs = self.tokenize_and_prepare(targets, add_noise=True)
+            decoder_inputs = self.tokenize_and_prepare(targets, sos=True)
+            targets = self.tokenize_and_prepare(targets, eos=True)
 
-            x_train = self.encode_onehot(x_train, self.charset, self.max_text_length, reverse=True)
-            x_train_decoder = self.encode_onehot(x_train_decoder, self.charset, self.max_text_length)
-            y_train = self.encode_onehot(y_train, self.charset, self.max_text_length)
-
-            yield [x_train, x_train_decoder], [y_train]
+            yield [inputs, decoder_inputs], [targets]
 
     def next_valid_batch(self):
-        """Get the next batch from validation partition (yield)"""
+        """Get the next batch from valid partition (yield)"""
 
         while True:
             if self.valid_index >= self.total_valid:
@@ -102,21 +92,17 @@ class DataGenerator():
             until = self.valid_index + self.batch_size
             self.valid_index += self.batch_size
 
-            x_valid = self.dataset["valid"]["dt"][index:until]
-            y_valid = self.dataset["valid"]["gt"][index:until]
+            inputs = self.dataset["valid"]["dt"][index:until]
+            targets = self.dataset["valid"]["gt"][index:until]
 
-            x_valid = self.padding(x_valid, self.max_text_length, post=self.EOS)
-            x_valid_decoder = self.padding(y_valid, self.max_text_length, pre=self.SOS, post=self.EOS)
-            y_valid = self.padding(y_valid, self.max_text_length, post=self.EOS)
+            inputs = self.tokenize_and_prepare(inputs)
+            decoder_inputs = self.tokenize_and_prepare(targets, sos=True)
+            targets = self.tokenize_and_prepare(targets, eos=True)
 
-            x_valid = self.encode_onehot(x_valid, self.charset, self.max_text_length, reverse=True)
-            x_valid_decoder = self.encode_onehot(x_valid_decoder, self.charset, self.max_text_length)
-            y_valid = self.encode_onehot(y_valid, self.charset, self.max_text_length)
-
-            yield [x_valid, x_valid_decoder], [y_valid]
+            yield [inputs, decoder_inputs], [targets]
 
     def next_test_batch(self):
-        """Return model predict parameters"""
+        """Get the next batch from test partition (yield)"""
 
         while True:
             if self.test_index >= self.total_test:
@@ -126,8 +112,52 @@ class DataGenerator():
             until = self.test_index + self.batch_size
             self.test_index += self.batch_size
 
-            x_test = self.dataset["test"]["dt"][index:until]
-            x_test = self.padding(x_test, self.max_text_length, post=self.EOS)
-            x_test = self.encode_onehot(x_test, self.charset, self.max_text_length, reverse=True)
+            inputs = self.dataset["test"]["dt"][index:until]
+            inputs = self.tokenize_and_prepare(inputs)
 
-            yield [x_test]
+            yield [inputs]
+
+
+class Tokenizer():
+    """Manager tokens functions and charset/dictionary properties"""
+
+    def __init__(self, chars, max_text_length=128):
+        self.PAD_TK, self.SOS_TK, self.EOS_TK = "¬", "«", "»"
+        self.chars = (self.PAD_TK + self.SOS_TK + self.EOS_TK + chars)
+
+        self.PAD = self.chars.find(self.PAD_TK)
+        self.SOS = self.chars.find(self.SOS_TK)
+        self.EOS = self.chars.find(self.EOS_TK)
+
+        self.vocab_size = len(self.chars)
+        self.maxlen = max_text_length
+
+    def encode(self, text):
+        """Encode text to vector"""
+
+        return np.array([self.chars.find(x) for x in text])
+
+    def decode(self, text):
+        """Decode vector to text"""
+
+        return "".join([self.chars[int(x)] for x in text])
+
+    def encode_one_hot(self, vector):
+        """Encode vector to one-hot"""
+
+        encoded = np.zeros((len(vector), self.vocab_size))
+
+        for i in range(len(vector)):
+            encoded[i][int(vector[i])] = 1.0
+
+        return np.array(encoded)
+
+    def decode_one_hot(self, one_hot):
+        """Decode one-hot to vector"""
+
+        return tf.argmax(one_hot, axis=1)
+
+    def remove_tokens(self, text):
+        """Remove tokens (PAD, SOS, EOS) from text"""
+
+        return text.replace(self.SOS_TK, "").replace(self.EOS_TK, "").replace(self.PAD_TK, "")

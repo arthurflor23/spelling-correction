@@ -13,7 +13,7 @@ class Transform():
         self.lines = dict()
         self.partitions = dict()
 
-    def build(self):
+    def build(self, balance=True):
         lines = open(os.path.join(self.source, "ground_truth", "transcription.txt")).read().splitlines()
 
         for line in lines:
@@ -38,6 +38,7 @@ class Transform():
             lines.append(self.lines[partition])
 
         lines = list(set(lines))
-        lines = pp.standardize(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = pp.padding_punctuation(lines)
+        lines = pp.split_by_max_length(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         return lines

@@ -1,6 +1,6 @@
 <img src="https://github.com/arthurflor23/text-correction/blob/master/doc/image/header.png?raw=true">
 
-A text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) and [TensorFlow 2.0](https://www.tensorflow.org/) (seq2seq). This project supports several text datasets and uses a noise function to create more data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
+A text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) and [Transformer](https://www.tensorflow.org/) (with TensorFlow 2.0). This project supports several text datasets and uses a noise function to create more data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
 
 This project has a Statistical Language Model approach and a Neural Network approach, both with the purpose of simple text correction (a simple approach to the spell checker).
 
@@ -38,13 +38,13 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
-* `--mode`: method to be used (symspell or seq2seq)
+* `--mode`: method to be used:
 
   `symspell`:
 
     * `--N`: max edit distance (2 by default)
 
-  `seq2seq`:
+  `seq2seq`, `transformer`:
 
         * `--train`: train the model
 

@@ -12,9 +12,10 @@ class Transform():
         self.max_text_length = max_text_length
         self.partitions = dict()
 
-    def build(self):
+    def build(self, balance=True):
         lines = list(set(m2.read_raw(self.m2_file)))
-        lines = pp.standardize(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = pp.padding_punctuation(lines)
+        lines = pp.split_by_max_length(lines, charset=self.charset, max_text_length=self.max_text_length)
 
         total = len(lines)
         train_i = int(total * 0.8)
