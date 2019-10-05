@@ -71,7 +71,7 @@ class Seq2SeqAttention():
             self.encoder.load_weights(target, by_name=True)
             self.decoder.load_weights(target, by_name=True)
 
-    def get_callbacks(self, logdir, hdf5, monitor="val_accuracy", verbose=0):
+    def get_callbacks(self, logdir, hdf5, monitor="val_loss", verbose=0):
         """Setup the list of callbacks for the model"""
 
         callbacks = [
@@ -102,7 +102,7 @@ class Seq2SeqAttention():
                 monitor=monitor,
                 min_delta=0,
                 factor=0.2,
-                patience=10,
+                patience=5,
                 verbose=verbose)
         ]
 
@@ -131,12 +131,14 @@ class Seq2SeqAttention():
         # Encoder BiGRU
         encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True,
                                           name="encoder_gru", dropout=self.dropout), name="encoder_bigru")
+
         encoder_out, encoder_fwd_state, encoder_back_state = encoder_bigru(encoder_inputs)
         encoder_states = Concatenate(axis=-1)([encoder_fwd_state, encoder_back_state])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
         decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True,
                           name="decoder_gru", dropout=self.dropout)
+
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
         # Attention layer
@@ -147,6 +149,7 @@ class Seq2SeqAttention():
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
         dense_time = TimeDistributed(dense, name="time_distributed_layer")
+
         decoder_pred = dense_time(decoder_concat_input)
 
         if learning_rate is None:
@@ -199,12 +202,10 @@ class Seq2SeqAttention():
                       initial_epoch=0):
         """
         Model training on data yielded batch-by-batch by a Python generator.
-
         The generator is run in parallel to the model, for efficiency.
-        For instance, this allows you to do real-time data augmentation on images on CPU in parallel to training your model on GPU.
 
-        A major modification concerns the generator that must provide x data of the form:
-          [input_sequences_encoder, input_sequences_decoder, label_sequences]
+        A major modification concerns the generator that must provide x and y data of the form:
+          [input_sequences_encoder, input_sequences_decoder], label_sequences
 
         :param: See tensorflow.keras.engine.Model.fit_generator()
         :return: A History object
@@ -263,10 +264,10 @@ class Seq2SeqAttention():
 
             while steps_done < steps:
                 x = next(output_generator)
-                batch_size = len(x[0])
+                batch_size = len(x)
 
                 # Encode the input as state vectors
-                encoder_out, state_h, state_c = self.encoder.predict(x)
+                encoder_out, state_h, state_c = self.encoder.predict([x])
                 dec_state = np.concatenate([state_h, state_c], axis=-1)
 
                 # Create batch of empty target sequences of length 1 character and populate

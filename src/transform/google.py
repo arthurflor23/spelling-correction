@@ -1,6 +1,7 @@
 """Transform 1-Billion Google dataset (subset)"""
 
 import os
+from multiprocessing import Pool
 from data import preproc as pp
 
 
@@ -12,34 +13,39 @@ class Transform():
         self.max_text_length = max_text_length
         self.partitions = dict()
 
-    def build(self, balance=True):
+    def build(self, only=True):
         m2_list = next(os.walk(self.source))[2]
         lines_en, lines_fr = [], []
 
         for m2_file in m2_list:
-            if "2011" in m2_file:
-                if ".en" in m2_file:
-                    lines_en.extend(open(os.path.join(self.source, m2_file)).read().splitlines())
-                elif ".fr" in m2_file:
-                    lines_fr.extend(open(os.path.join(self.source, m2_file)).read().splitlines())
+            if "2010" in m2_file and ".en" in m2_file:
+                with open(os.path.join(self.source, m2_file)) as f:
+                    for line in f:
+                        lines_en.append(line)
+                    lines_en = list(set(lines_en))[::-1]
 
-        lines_en = list(set(lines_en[::-1]))
-        lines_fr = list(set(lines_fr[::-1]))
+            elif "2009" in m2_file and ".fr" in m2_file:
+                with open(os.path.join(self.source, m2_file)) as f:
+                    for line in f:
+                        lines_fr.append(line)
+                    lines_fr = list(set(lines_fr))[::-1]
 
-        # if dataset only 'google', english and french will be 42K samples.
-        # if dataset is 'all', english will be 4.2K and french 42K samples.
-        # this make a balance samples with the other datasets (english and french).
-        en_split = 4.2e4 if balance else 4.2e3
-        fr_split = 4.2e4
-
-        lines_en = lines_en[:int(en_split)]
-        lines_fr = lines_fr[:int(fr_split)]
+        # if dataset only 'google', english and french will be 75% samples (around 12 M).
+        # if dataset is 'all', english and french will be 7.5% samples (around 1.2 M).
+        # this make a balance samples with the other datasets.
+        factor = 0.85 if only else 0.085
+        lines_en = lines_en[:int(len(lines_en) * factor)]
+        lines_fr = lines_fr[:int(len(lines_fr) * factor)]
 
         lines = lines_en + lines_fr
         del lines_en, lines_fr
 
-        lines = pp.padding_punctuation(lines)
-        lines = pp.split_by_max_length(lines, charset=self.charset, max_text_length=self.max_text_length)
+        pool = Pool()
+        lines = pool.map(pp.padding_punctuation, lines)
+        pool.close()
+        pool.join()
+
+        lines = [y for x in lines for y in pp.split_by_max_length(x, self.charset, self.max_text_length)]
         lines = pp.shuffle(lines)
 
         train_i = int(len(lines) * 0.8)

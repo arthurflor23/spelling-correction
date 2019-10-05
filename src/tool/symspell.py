@@ -72,7 +72,7 @@ class Symspell():
             for x in batch[i].split():
                 sugg = self.symspell.lookup(x, verbosity=0, max_edit_distance=self.max_edit_distance,
                                             transfer_casing=True) if x not in string.punctuation else None
-                splitted.append(pp.padding_punctuation([sugg[0].term] if sugg else [x])[0])
+                splitted.append(pp.padding_punctuation(sugg[0].term if sugg else x))
 
             corrected.append(" ".join(splitted))
         return corrected

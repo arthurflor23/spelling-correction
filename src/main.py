@@ -33,7 +33,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="seq2seq")
     parser.add_argument("--N", type=int, default=2)
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--test", action="store_true", default=False)
     args = parser.parse_args()
@@ -63,7 +63,7 @@ if __name__ == "__main__":
                                     charset=(charset_base + charset_special),
                                     max_text_length=max_text_length)
 
-                tfm.build(balance=(args.dataset != "all"))
+                tfm.build(only=(args.dataset != "all"))
                 train += tfm.partitions["train"]
                 valid += tfm.partitions["valid"]
                 test += tfm.partitions["test"]
@@ -76,8 +76,8 @@ if __name__ == "__main__":
         valid = pp.shuffle(valid)
         test = pp.shuffle(test)
 
-        valid_noised = [pp.add_noise([x], max_text_length)[0] for x in valid]
-        test_noised = [pp.add_noise([x], max_text_length)[0] for x in test]
+        valid_noised = pp.add_noise(valid)
+        test_noised = pp.add_noise(test)
 
         current_metric = evaluation.ocr_metrics(test_noised, test)
 
@@ -135,22 +135,23 @@ if __name__ == "__main__":
             pred_corpus, eval_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time,
                                                          plus=f"Max Edit distance:\t{args.N}\n")
 
-            with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
-                print(eval_corpus)
-                lg.write(eval_corpus)
-
             with open(os.path.join(output_path, "predict.txt"), "w") as lg:
-                lg.write(pred_corpus)
+                lg.write("\n".join(pred_corpus))
+                print("\n".join(pred_corpus[:30]))
+
+            with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                lg.write(eval_corpus)
+                print(eval_corpus)
 
         else:
             if args.mode == "transformer":
-                model = Transformer(num_layers=2, units=128, num_heads=2,
-                                    dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Transformer(num_layers=2, units=256, d_model=256, num_heads=2, dropout=0.1, tokenizer=dtgen.tokenizer)
 
             elif args.mode == "seq2seq":
                 dtgen.one_hot_process(True)
-                model = Seq2SeqAttention(units=128, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Seq2SeqAttention(units=256, dropout=0.1, tokenizer=dtgen.tokenizer)
 
+            # set parameter `learning_rate` to customize or get default value
             model.compile()
 
             checkpoint = "checkpoint_weights.hdf5"

@@ -4,59 +4,50 @@ import string
 import numpy as np
 
 
-def padding_punctuation(sentences):
+def padding_punctuation(sentence):
     """Organize/add spaces around punctuation marks"""
 
-    for i in range(len(sentences)):
-        sentences[i] = " ".join(sentences[i].split()).replace(" '", "'").replace("' ", "'")
-        sentences[i] = sentences[i].replace("«", "").replace("»", "")
+    sentence = sentence.replace(" '", "'").replace("' ", "'")
+    sentence = sentence.replace("«", "").replace("»", "")
 
-        for y in sentences[i]:
-            if y in string.punctuation.replace("'", ""):
-                sentences[i] = sentences[i].replace(y, f" {y} ")
+    for y in sentence:
+        if y in string.punctuation.replace("'", ""):
+            sentence = sentence.replace(y, f" {y} ")
 
-        sentences[i] = " ".join(sentences[i].split())
+    sentence = " ".join(sentence.split())
 
-    return sentences
+    return sentence
 
 
-def split_by_max_length(sentences, charset=None, max_text_length=100):
-    """Standardize sentences: split long sentences into max_text_length"""
+def split_by_max_length(sentence, charset=None, max_text_length=128):
+    """Standardize n_sentences: split long n_sentences into max_text_length"""
 
     tolerance = 3
-    min_text_length = 3
-    new_setences = []
+    max_text_length -= tolerance
+    new_n_sentences = []
 
-    for i in range(len(sentences)):
-        x = sentences[i]
+    if charset is not None:
+        sentence = "".join([c for c in sentence if c in charset])
 
-        if charset is not None:
-            x = "".join([c for c in sentences[i] if c in charset])
+    if len(sentence) < max_text_length - tolerance:
+        new_n_sentences.append(sentence)
+    else:
+        splitted = sentence.split()
+        text = []
 
-        if len(x) < min_text_length:
-            continue
+        for x in splitted:
+            text_temp = " ".join(text)
 
-        if len(x) < max_text_length - tolerance:
-            new_setences.append(x)
-        else:
-            splitted = x.split()
-            text = []
+            if len(text_temp) + len(x) < max_text_length:
+                text.append(x)
+            else:
+                new_n_sentences.append(text_temp)
+                text = [x]
 
-            for y in splitted:
-                te = " ".join(text)
+        text_temp = " ".join(text)
+        new_n_sentences.append(text_temp)
 
-                if len(te) + len(y) < max_text_length - tolerance:
-                    text.append(y)
-                else:
-                    new_setences.append(te)
-                    text = [y]
-
-            te = " ".join(text)
-
-            if len(te) >= min_text_length:
-                new_setences.append(te)
-
-    return new_setences
+    return new_n_sentences
 
 
 def shuffle(array):
@@ -82,33 +73,39 @@ Method to apply text random noise error (adapted):
 """
 
 
-def add_noise(batch, max_text_length=128, level=1):
+def add_noise(sentences, max_text_length=128, amount_of_noise=0.6, level=2):
     """Add some artificial spelling mistakes to the string"""
 
     charset = list(string.ascii_letters + string.digits)
+    n_sentences = sentences.copy()
 
-    for i in range(len(batch)):
-        if len(batch[i]) > 4:
+    for i in range(len(n_sentences)):
+        if len(n_sentences[i]) > 4:
             for _ in range(level):
                 # Replace a character with a random character
-                random_char_position = np.random.randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position + 1:]
+                if np.random.rand() < amount_of_noise:
+                    position = np.random.randint(len(n_sentences[i]))
+                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
+                                      n_sentences[i][position + 1:])
 
                 # Transpose 2 characters
-                random_char_position = np.random.randint(len(batch[i]) - 1)
-                batch[i] = (batch[i][:random_char_position] + batch[i][random_char_position + 1] +
-                            batch[i][random_char_position] + batch[i][random_char_position + 2:])
+                if np.random.rand() < amount_of_noise:
+                    position = np.random.randint(len(n_sentences[i]) - 1)
+                    n_sentences[i] = (n_sentences[i][:position] + n_sentences[i][position + 1] +
+                                      n_sentences[i][position] + n_sentences[i][position + 2:])
 
                 # Delete a character
-                random_char_position = np.random.randint(len(batch[i]))
-                batch[i] = batch[i][:random_char_position] + batch[i][random_char_position + 1:]
+                if np.random.rand() < amount_of_noise:
+                    position = np.random.randint(len(n_sentences[i]))
+                    n_sentences[i] = n_sentences[i][:position] + n_sentences[i][position + 1:]
 
                 # Add a random character
-                if len(batch[i]) < max_text_length:
-                    random_char_position = np.random.randint(len(batch[i]))
-                    batch[i] = batch[i][:random_char_position] + np.random.choice(charset[:-1]) + batch[i][random_char_position:]
+                if np.random.rand() < amount_of_noise and len(n_sentences[i]) < max_text_length:
+                    position = np.random.randint(len(n_sentences[i]))
+                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
+                                      n_sentences[i][position:])
 
-        batch[i] = padding_punctuation([batch[i]])[0]
-        batch[i] = batch[i][:max_text_length - 1]
+        n_sentences[i] = padding_punctuation(n_sentences[i])
+        n_sentences[i] = n_sentences[i][:max_text_length - 1]
 
-    return batch
+    return n_sentences

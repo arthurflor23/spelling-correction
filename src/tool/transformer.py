@@ -44,14 +44,14 @@ class Transformer():
         Jupyter Notebook: https://colab.research.google.com/drive/1YhN8ZCZhrv18Hw0a_yIkuZ5tTh4EZDuG#scrollTo=ha0dNJogUPQN
     """
 
-    def __init__(self, num_layers, units, num_heads, dropout, tokenizer):
+    def __init__(self, num_layers, units, d_model, num_heads, dropout, tokenizer):
         self.num_layers = num_layers
         self.units = units
         self.num_heads = num_heads
         self.dropout = dropout
 
         self.tokenizer = tokenizer
-        self.d_model = tokenizer.vocab_size
+        self.d_model = d_model
 
         self.model = None
         self.encoder = None
@@ -79,7 +79,7 @@ class Transformer():
             self.encoder.load_weights(target, by_name=True)
             self.decoder.load_weights(target, by_name=True)
 
-    def get_callbacks(self, logdir, hdf5, monitor="val_accuracy", verbose=0):
+    def get_callbacks(self, logdir, hdf5, monitor="val_loss", verbose=0):
         """Setup the list of callbacks for the model"""
 
         callbacks = [
@@ -130,19 +130,13 @@ class Transformer():
             """Loss function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
             y_true = tf.reshape(y_true, shape=(-1, self.tokenizer.maxlen))
-            loss = tf.keras.losses.SparseCategoricalCrossentropy()(y_true, y_pred)
+            loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction="none")(y_true, y_pred)
             mask = tf.cast(tf.not_equal(y_true, 0), tf.float32)
             loss = tf.multiply(loss, mask)
             return tf.reduce_mean(loss)
 
         inputs = Input(shape=(None,), name="inputs")
         dec_inputs = Input(shape=(None,), name="dec_inputs")
-
-        # enc_padding_mask = Lambda(create_padding_mask, output_shape=(1, 1, None), name="enc_padding_mask")(inputs)
-        # mask the future tokens for decoder inputs at the 1st attention block
-        # look_ahead_mask = Lambda(create_look_ahead_mask, output_shape=(1, None, None), name="look_ahead_mask")(dec_inputs)
-        # mask the encoder outputs for the 2nd attention block
-        # dec_padding_mask = Lambda(create_padding_mask, output_shape=(1, 1, None), name="dec_padding_mask")(inputs)
 
         self.encoder = self._encoder_model(vocab_size=self.tokenizer.vocab_size,
                                            num_layers=self.num_layers,
@@ -151,7 +145,6 @@ class Transformer():
                                            num_heads=self.num_heads,
                                            dropout=self.dropout)
 
-        # enc_outputs = self.encoder(inputs=inputs)
         enc_outputs, enc_padding_mask = self.encoder(inputs=inputs)
 
         self.decoder = self._decoder_model(vocab_size=self.tokenizer.vocab_size,
@@ -161,7 +154,6 @@ class Transformer():
                                            num_heads=self.num_heads,
                                            dropout=self.dropout)
 
-        # dec_outputs = self.decoder(inputs=[dec_inputs, enc_outputs])
         dec_outputs = self.decoder(inputs=[dec_inputs, enc_outputs, enc_padding_mask])
 
         if learning_rate is None:
@@ -192,7 +184,6 @@ class Transformer():
                                           name=f"encoder_layer_{i}",
                                           )([outputs, enc_padding_mask])
 
-        # return Model(inputs=inputs, outputs=outputs, name=name)
         return Model(inputs=inputs, outputs=[outputs, enc_padding_mask], name=name)
 
     def _encoder_layer(self, units, d_model, num_heads, dropout, name="encoder_layer"):
@@ -227,7 +218,6 @@ class Transformer():
         dec_padding_mask = Input(shape=(1, 1, None), name="dec_padding_mask")
 
         look_ahead_mask = Lambda(self.create_look_ahead_mask, output_shape=(1, None, None), name="look_ahead_mask")(inputs)
-        # dec_padding_mask = Lambda(create_padding_mask, output_shape=(1, 1, None), name="dec_padding_mask")(enc_outputs)
 
         embeddings = Embedding(vocab_size, d_model)(inputs)
         embeddings *= tf.math.sqrt(tf.cast(d_model, tf.float32))
@@ -243,9 +233,8 @@ class Transformer():
                                           name=f"decoder_layer_{i}",
                                           )(inputs=[outputs, enc_outputs, look_ahead_mask, dec_padding_mask])
 
-        outputs = Dense(units=self.tokenizer.vocab_size, name="outputs")(outputs)
+        outputs = Dense(units=vocab_size, name="outputs")(outputs)
 
-        # return Model(inputs=[inputs, enc_outputs], outputs=outputs, name=name)
         return Model(inputs=[inputs, enc_outputs, dec_padding_mask], outputs=outputs, name=name)
 
     def _decoder_layer(self, units, d_model, num_heads, dropout, name="decoder_layer"):
@@ -297,18 +286,14 @@ class Transformer():
                       initial_epoch=0):
         """
         Model training on data yielded batch-by-batch by a Python generator.
-
         The generator is run in parallel to the model, for efficiency.
-        For instance, this allows you to do real-time data augmentation
-        on CPU in parallel to training your model on GPU.
 
-        A major modification concerns the generator that must provide x data of the form:
-          [input_sequences_encoder, input_sequences_decoder, label_sequences]
+        A major modification concerns the generator that must provide x and y data of the form:
+          [input_sequences_encoder, input_sequences_decoder], label_sequences
 
         :param: See tensorflow.keras.engine.Model.fit_generator()
         :return: A History object
         """
-
         out = self.model.fit_generator(generator, steps_per_epoch=steps_per_epoch, epochs=epochs,
                                        verbose=verbose, callbacks=callbacks, validation_data=validation_data,
                                        validation_steps=validation_steps, class_weight=class_weight,
@@ -410,35 +395,6 @@ class Transformer():
         return mask[:, tf.newaxis, tf.newaxis, :]
 
 
-class PositionalEncoding(tf.keras.layers.Layer):
-    """Positional encoding (features)"""
-
-    def __init__(self, position, d_model):
-        super(PositionalEncoding, self).__init__()
-        self.pos_encoding = self.positional_encoding(position, d_model)
-
-    def get_angles(self, position, i, d_model):
-        angles = 1 / tf.pow(10000, (2 * (i // 2)) / tf.cast(d_model, tf.float32))
-        return position * angles
-
-    def positional_encoding(self, position, d_model):
-        angle_rads = self.get_angles(
-            position=tf.range(position, dtype=tf.float32)[:, tf.newaxis],
-            i=tf.range(d_model, dtype=tf.float32)[tf.newaxis, :],
-            d_model=d_model)
-        # apply sin to even index in the array
-        sines = tf.math.sin(angle_rads[:, 0::2])
-        # apply cos to odd index in the array
-        cosines = tf.math.cos(angle_rads[:, 1::2])
-
-        pos_encoding = tf.concat([sines, cosines], axis=-1)
-        pos_encoding = pos_encoding[tf.newaxis, ...]
-        return tf.cast(pos_encoding, tf.float32)
-
-    def call(self, inputs):
-        return inputs + self.pos_encoding[:, :tf.shape(inputs)[1], :]
-
-
 class MultiHeadAttention(tf.keras.layers.Layer):
     """
     Multi-Head Attention (self attention), make the core of Transformer Model.
@@ -502,6 +458,55 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         outputs = self.dense(concat_attention)
 
         return outputs
+
+
+"""
+Positional Encoding and Custom Schedule.
+Inject some information about the relative or absolute position of the tokens in the sequence.
+
+References:
+    Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and
+    Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin.
+    "Attention Is All You Need", 2017
+    arXiv, URL: https://arxiv.org/abs/1706.03762
+
+    Jonas Gehring, Michael Auli, David Grangier, Denis Yarats, Yann N. Dauphin
+    "Convolutional Sequence to Sequence Learning", 2017
+    arXiv, URL: https://arxiv.org/abs/1705.03122
+
+    Sho Takase, Naoaki Okazaki.
+    "Positional Encoding to Control Output Sequence Length", 2019
+    arXiv, URL: https://arxiv.org/abs/1904.07418
+"""
+
+
+class PositionalEncoding(tf.keras.layers.Layer):
+    """Positional encoding (features)"""
+
+    def __init__(self, position, d_model):
+        super(PositionalEncoding, self).__init__()
+        self.pos_encoding = self.positional_encoding(position, d_model)
+
+    def get_angles(self, position, i, d_model):
+        angles = 1 / tf.pow(10000, (2 * (i // 2)) / tf.cast(d_model, tf.float32))
+        return position * angles
+
+    def positional_encoding(self, position, d_model):
+        angle_rads = self.get_angles(
+            position=tf.range(position, dtype=tf.float32)[:, tf.newaxis],
+            i=tf.range(d_model, dtype=tf.float32)[tf.newaxis, :],
+            d_model=d_model)
+        # apply sin to even index in the array
+        sines = tf.math.sin(angle_rads[:, 0::2])
+        # apply cos to odd index in the array
+        cosines = tf.math.cos(angle_rads[:, 1::2])
+
+        pos_encoding = tf.concat([sines, cosines], axis=-1)
+        pos_encoding = pos_encoding[tf.newaxis, ...]
+        return tf.cast(pos_encoding, tf.float32)
+
+    def call(self, inputs):
+        return inputs + self.pos_encoding[:, :tf.shape(inputs)[1], :]
 
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):

@@ -1,9 +1,9 @@
 """Transform Rimes dataset"""
 
 import os
-from data import preproc as pp
-import xml.etree.ElementTree as ET
 import html
+import xml.etree.ElementTree as ET
+from data import preproc as pp
 
 
 class Transform():
@@ -15,7 +15,7 @@ class Transform():
         self.lines = dict()
         self.partitions = dict()
 
-    def build(self, balance=True):
+    def build(self, only=True):
         train = self._build_partition("training_2011.xml")
 
         total = len(train)
@@ -38,7 +38,8 @@ class Transform():
                     lines.append(text_line)
 
         lines = list(set(lines))
-        lines = pp.padding_punctuation(lines)
-        lines = pp.split_by_max_length(lines, charset=self.charset, max_text_length=self.max_text_length)
+        lines = [pp.padding_punctuation(x) for x in lines]
+        lines = [y for x in lines for y in pp.split_by_max_length(x, self.charset, self.max_text_length)]
+        lines = pp.shuffle(lines)
 
         return lines

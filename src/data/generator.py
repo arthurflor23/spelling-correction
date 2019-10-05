@@ -40,27 +40,27 @@ class DataGenerator():
     def one_hot_process(self, active=True):
         self.one_hot = active
 
-    def tokenize_and_prepare(self, sentences, sos=False, eos=False, add_noise=False, reverse=False):
+    def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False, reverse=False):
         """Prepare inputs to feed the model"""
 
-        new_sentences = sentences.copy()
+        n_sen = sentences.copy()
         sos = self.tokenizer.SOS_TK if sos else ""
         eos = self.tokenizer.EOS_TK if eos else ""
 
-        for i in range(len(new_sentences)):
+        for i in range(len(n_sen)):
             if add_noise:
-                new_sentences[i] = pp.add_noise([new_sentences[i]], self.tokenizer.maxlen)[0]
+                n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen)[0]
 
-            new_sentences[i] = self.tokenizer.encode(sos + new_sentences[i] + eos)
-            new_sentences[i] = pad_sequences([new_sentences[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
+            n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
+            n_sen[i] = pad_sequences([n_sen[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
 
             if reverse:
-                new_sentences[i] = new_sentences[i][::-1]
+                n_sen[i] = n_sen[i][::-1]
 
             if self.one_hot:
-                new_sentences[i] = self.tokenizer.encode_one_hot(new_sentences[i])
+                n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
 
-        return np.array(new_sentences)
+        return np.array(n_sen)
 
     def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
@@ -75,11 +75,11 @@ class DataGenerator():
 
             targets = self.dataset["train"]["gt"][index:until]
 
-            inputs = self.tokenize_and_prepare(targets, add_noise=True)
-            decoder_inputs = self.tokenize_and_prepare(targets, sos=True)
-            targets = self.tokenize_and_prepare(targets, eos=True)
+            inputs = self.prepare_sequence(targets, add_noise=True)
+            decoder_inputs = self.prepare_sequence(targets, sos=True)
+            targets = self.prepare_sequence(targets, eos=True)
 
-            yield [inputs, decoder_inputs], [targets]
+            yield [inputs, decoder_inputs], targets
 
     def next_valid_batch(self):
         """Get the next batch from valid partition (yield)"""
@@ -95,11 +95,11 @@ class DataGenerator():
             inputs = self.dataset["valid"]["dt"][index:until]
             targets = self.dataset["valid"]["gt"][index:until]
 
-            inputs = self.tokenize_and_prepare(inputs)
-            decoder_inputs = self.tokenize_and_prepare(targets, sos=True)
-            targets = self.tokenize_and_prepare(targets, eos=True)
+            inputs = self.prepare_sequence(inputs)
+            decoder_inputs = self.prepare_sequence(targets, sos=True)
+            targets = self.prepare_sequence(targets, eos=True)
 
-            yield [inputs, decoder_inputs], [targets]
+            yield [inputs, decoder_inputs], targets
 
     def next_test_batch(self):
         """Get the next batch from test partition (yield)"""
@@ -113,9 +113,9 @@ class DataGenerator():
             self.test_index += self.batch_size
 
             inputs = self.dataset["test"]["dt"][index:until]
-            inputs = self.tokenize_and_prepare(inputs)
+            inputs = self.prepare_sequence(inputs)
 
-            yield [inputs]
+            yield inputs
 
 
 class Tokenizer():
