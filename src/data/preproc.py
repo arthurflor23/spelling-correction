@@ -1,5 +1,6 @@
 """Methods to help manager data development"""
 
+import re
 import string
 import numpy as np
 
@@ -22,7 +23,7 @@ def padding_punctuation(sentence):
 def split_by_max_length(sentence, charset=None, max_text_length=128):
     """Standardize n_sentences: split long n_sentences into max_text_length"""
 
-    tolerance = 3
+    tolerance = 5
     max_text_length -= tolerance
     new_n_sentences = []
 
@@ -45,7 +46,9 @@ def split_by_max_length(sentence, charset=None, max_text_length=128):
                 text = [x]
 
         text_temp = " ".join(text)
-        new_n_sentences.append(text_temp)
+
+        if len(text_temp) > tolerance:
+            new_n_sentences.append(text_temp)
 
     return new_n_sentences
 
@@ -76,12 +79,13 @@ Method to apply text random noise error (adapted):
 def add_noise(sentences, max_text_length=128, amount_of_noise=0.6, level=2):
     """Add some artificial spelling mistakes to the string"""
 
-    charset = list(string.ascii_letters + string.digits)
+    charset = list(set(" ()[].,\"'" + string.ascii_letters + string.digits))
     n_sentences = sentences.copy()
 
     for i in range(len(n_sentences)):
-        if len(n_sentences[i]) > 4:
-            for _ in range(level):
+        for _ in range(level):
+
+            if len(n_sentences[i]) > 4:
                 # Replace a character with a random character
                 if np.random.rand() < amount_of_noise:
                     position = np.random.randint(len(n_sentences[i]))
@@ -98,6 +102,10 @@ def add_noise(sentences, max_text_length=128, amount_of_noise=0.6, level=2):
                 if np.random.rand() < amount_of_noise:
                     position = np.random.randint(len(n_sentences[i]))
                     n_sentences[i] = n_sentences[i][:position] + n_sentences[i][position + 1:]
+
+                # Delete repeated characters
+                if np.random.rand() < amount_of_noise:
+                    n_sentences[i] = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', n_sentences[i])
 
                 # Add a random character
                 if np.random.rand() < amount_of_noise and len(n_sentences[i]) < max_text_length:

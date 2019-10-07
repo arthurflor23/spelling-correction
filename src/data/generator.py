@@ -20,9 +20,9 @@ class DataGenerator():
         self.total_valid = len(self.dataset["valid"]["gt"])
         self.total_test = len(self.dataset["test"]["gt"])
 
-        self.train_steps = np.maximum(self.total_train // self.batch_size, 1)
-        self.valid_steps = np.maximum(self.total_valid // self.batch_size, 1)
-        self.test_steps = np.maximum(self.total_test // self.batch_size, 1)
+        self.train_steps = np.maximum(self.total_train // batch_size, 1)
+        self.valid_steps = np.maximum(self.total_valid // batch_size, 1)
+        self.test_steps = np.maximum(self.total_test // batch_size, 1)
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
         self.one_hot_process(active=False)
