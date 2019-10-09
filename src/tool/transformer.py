@@ -11,6 +11,7 @@ References:
 import os
 import logging
 import tensorflow as tf
+
 from contextlib import redirect_stdout
 from tensorflow.keras import Input, Model
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ReduceLROnPlateau
@@ -131,7 +132,7 @@ class Transformer():
 
             y_true = tf.reshape(y_true, shape=(-1, self.tokenizer.maxlen))
             loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction="none")(y_true, y_pred)
-            mask = tf.cast(tf.not_equal(y_true, 0), tf.float32)
+            mask = tf.cast(tf.not_equal(y_true, 0), dtype="float32")
             loss = tf.multiply(loss, mask)
             return tf.reduce_mean(loss)
 
@@ -157,9 +158,9 @@ class Transformer():
         dec_outputs = self.decoder(inputs=[dec_inputs, enc_outputs, enc_padding_mask])
 
         if learning_rate is None:
-            learning_rate = CustomSchedule(self.d_model)
+            learning_rate = CustomSchedule(d_model=self.d_model)
 
-        optimizer = Adam(learning_rate=learning_rate)
+        optimizer = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
         self.model = Model(inputs=[inputs, dec_inputs], outputs=dec_outputs, name="transformer")
         self.model.compile(optimizer=optimizer, loss=loss_func, metrics=[accuracy])
@@ -171,7 +172,7 @@ class Transformer():
         enc_padding_mask = Lambda(self.create_padding_mask, output_shape=(1, 1, None), name="enc_padding_mask")(inputs)
 
         embeddings = Embedding(vocab_size, d_model)(inputs)
-        embeddings *= tf.math.sqrt(tf.cast(d_model, tf.float32))
+        embeddings *= tf.math.sqrt(tf.cast(d_model, dtype="float32"))
         embeddings = PositionalEncoding(vocab_size, d_model)(embeddings)
 
         outputs = Dropout(rate=dropout)(embeddings)
@@ -220,7 +221,7 @@ class Transformer():
         look_ahead_mask = Lambda(self.create_look_ahead_mask, output_shape=(1, None, None), name="look_ahead_mask")(inputs)
 
         embeddings = Embedding(vocab_size, d_model)(inputs)
-        embeddings *= tf.math.sqrt(tf.cast(d_model, tf.float32))
+        embeddings *= tf.math.sqrt(tf.cast(d_model, dtype="float32"))
         embeddings = PositionalEncoding(vocab_size, d_model)(embeddings)
 
         outputs = Dropout(rate=dropout)(embeddings)
@@ -363,7 +364,7 @@ class Transformer():
 
         for _ in range(self.tokenizer.maxlen):
             dec_output = self.decoder.predict([dec_input, en_output, en_mask])
-            predicted_id = tf.cast(tf.argmax(dec_output[:, -1:, :], axis=-1), tf.int32)
+            predicted_id = tf.cast(tf.argmax(dec_output[:, -1:, :], axis=-1), dtype="int32")
 
             if dec_input.get_shape()[1] > len(sentence) or predicted_id == self.tokenizer.EOS:
                 break
@@ -391,7 +392,7 @@ class Transformer():
     def create_padding_mask(x):
         """Mask the encoder outputs for the 2nd attention block"""
 
-        mask = tf.cast(tf.math.equal(x, 0), tf.float32)
+        mask = tf.cast(tf.math.equal(x, 0), dtype="float32")
         return mask[:, tf.newaxis, tf.newaxis, :]
 
 
@@ -439,7 +440,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         matmul_qk = tf.matmul(query, key, transpose_b=True)
 
         # scale matmul_qk
-        depth = tf.cast(tf.shape(key)[-1], tf.float32)
+        depth = tf.cast(tf.shape(key)[-1], dtype="float32")
         logits = matmul_qk / tf.math.sqrt(depth)
 
         # add the mask to zero out padding tokens
@@ -488,13 +489,13 @@ class PositionalEncoding(tf.keras.layers.Layer):
         self.pos_encoding = self.positional_encoding(position, d_model)
 
     def get_angles(self, position, i, d_model):
-        angles = 1 / tf.pow(10000, (2 * (i // 2)) / tf.cast(d_model, tf.float32))
+        angles = 1 / tf.pow(10000, (2 * (i // 2)) / tf.cast(d_model, dtype="float32"))
         return position * angles
 
     def positional_encoding(self, position, d_model):
         angle_rads = self.get_angles(
-            position=tf.range(position, dtype=tf.float32)[:, tf.newaxis],
-            i=tf.range(d_model, dtype=tf.float32)[tf.newaxis, :],
+            position=tf.range(position, dtype="float32")[:, tf.newaxis],
+            i=tf.range(d_model, dtype="float32")[tf.newaxis, :],
             d_model=d_model)
         # apply sin to even index in the array
         sines = tf.math.sin(angle_rads[:, 0::2])
@@ -503,7 +504,7 @@ class PositionalEncoding(tf.keras.layers.Layer):
 
         pos_encoding = tf.concat([sines, cosines], axis=-1)
         pos_encoding = pos_encoding[tf.newaxis, ...]
-        return tf.cast(pos_encoding, tf.float32)
+        return tf.cast(pos_encoding, dtype="float32")
 
     def call(self, inputs):
         return inputs + self.pos_encoding[:, :tf.shape(inputs)[1], :]
@@ -519,7 +520,7 @@ class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
         super(CustomSchedule, self).__init__()
 
         self.d_model = d_model
-        self.d_model = tf.cast(self.d_model, tf.float32)
+        self.d_model = tf.cast(self.d_model, dtype="float32")
 
         self.warmup_steps = warmup_steps
 

@@ -76,7 +76,7 @@ Method to apply text random noise error (adapted):
 """
 
 
-def add_noise(sentences, max_text_length=128, amount_of_noise=0.6, level=2):
+def add_noise(sentences, max_text_length=128, amount_of_noise=0.5, level=2):
     """Add some artificial spelling mistakes to the string"""
 
     charset = list(set(" ()[].,\"'" + string.ascii_letters + string.digits))

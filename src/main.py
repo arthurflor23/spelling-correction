@@ -145,12 +145,12 @@ if __name__ == "__main__":
 
         else:
             if args.mode == "transformer":
-                model = Transformer(num_layers=2, units=256, d_model=256, num_heads=4,
+                model = Transformer(num_layers=2, units=128, d_model=128, num_heads=4,
                                     dropout=0.1, tokenizer=dtgen.tokenizer)
 
             elif args.mode == "seq2seq":
                 dtgen.one_hot_process(True)
-                model = Seq2SeqAttention(units=512, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Seq2SeqAttention(units=128, dropout=0.1, tokenizer=dtgen.tokenizer)
 
             # set parameter `learning_rate` to customize or set `None` to get default schedule function
             model.compile(learning_rate=0.001)
