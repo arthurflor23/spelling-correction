@@ -9,7 +9,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, charset, max_text_length=128):
+    def __init__(self, m2_src, batch_size, charset, max_text_length=128, amount_noise=0.5):
         self.tokenizer = Tokenizer(charset, max_text_length)
         self.batch_size = batch_size
 
@@ -25,7 +25,9 @@ class DataGenerator():
         self.test_steps = np.maximum(self.total_test // batch_size, 1)
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
-        self.one_hot_process(active=False)
+
+        self.amount_noise = amount_noise
+        self.one_hot_process(active=True)
 
     def _full_fill_dataset(self):
         """Make full fill dataset up to batch size and steps"""
@@ -36,6 +38,18 @@ class DataGenerator():
 
                 self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
                 self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
+
+    def increase_noise(self, x=0.001, from_up=None):
+        """Increase the amount noise value to make a incremental learning process"""
+
+        if from_up is not None and from_up == 0:
+            self.amount_noise = 0
+
+        self.amount_noise += x
+        print(self.amount_noise)
+
+        for pt in ["valid", "test"]:
+            self.dataset[pt]["dt"] = pp.add_noise(self.dataset[pt]["gt"], self.tokenizer.maxlen, self.amount_noise)
 
     def one_hot_process(self, active=True):
         self.one_hot = active
@@ -49,7 +63,7 @@ class DataGenerator():
 
         for i in range(len(n_sen)):
             if add_noise:
-                n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen)[0]
+                n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen, self.amount_noise)[0]
 
             n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
             n_sen[i] = pad_sequences([n_sen[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
@@ -75,7 +89,7 @@ class DataGenerator():
 
             targets = self.dataset["train"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(targets, add_noise=True)
+            inputs = self.prepare_sequence(targets, add_noise=True, reverse=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -95,7 +109,7 @@ class DataGenerator():
             inputs = self.dataset["valid"]["dt"][index:until]
             targets = self.dataset["valid"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(inputs)
+            inputs = self.prepare_sequence(inputs, reverse=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -113,7 +127,7 @@ class DataGenerator():
             self.test_index += self.batch_size
 
             inputs = self.dataset["test"]["dt"][index:until]
-            inputs = self.prepare_sequence(inputs)
+            inputs = self.prepare_sequence(inputs, reverse=True)
 
             yield inputs
 

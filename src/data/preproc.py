@@ -76,7 +76,7 @@ Method to apply text random noise error (adapted):
 """
 
 
-def add_noise(sentences, max_text_length=128, amount_of_noise=0.5, level=2):
+def add_noise(sentences, max_text_length=128, amount_noise=0.5, level=2):
     """Add some artificial spelling mistakes to the string"""
 
     charset = list(set(" ()[].,\"'" + string.ascii_letters + string.digits))
@@ -87,28 +87,28 @@ def add_noise(sentences, max_text_length=128, amount_of_noise=0.5, level=2):
 
             if len(n_sentences[i]) > 4:
                 # Replace a character with a random character
-                if np.random.rand() < amount_of_noise:
+                if np.random.rand() < amount_noise:
                     position = np.random.randint(len(n_sentences[i]))
                     n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
                                       n_sentences[i][position + 1:])
 
                 # Transpose 2 characters
-                if np.random.rand() < amount_of_noise:
+                if np.random.rand() < amount_noise:
                     position = np.random.randint(len(n_sentences[i]) - 1)
                     n_sentences[i] = (n_sentences[i][:position] + n_sentences[i][position + 1] +
                                       n_sentences[i][position] + n_sentences[i][position + 2:])
 
                 # Delete a character
-                if np.random.rand() < amount_of_noise:
+                if np.random.rand() < amount_noise:
                     position = np.random.randint(len(n_sentences[i]))
                     n_sentences[i] = n_sentences[i][:position] + n_sentences[i][position + 1:]
 
                 # Delete repeated characters
-                if np.random.rand() < amount_of_noise:
+                if np.random.rand() < amount_noise:
                     n_sentences[i] = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', n_sentences[i])
 
                 # Add a random character
-                if np.random.rand() < amount_of_noise and len(n_sentences[i]) < max_text_length:
+                if np.random.rand() < amount_noise and len(n_sentences[i]) < max_text_length:
                     position = np.random.randint(len(n_sentences[i]))
                     n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
                                       n_sentences[i][position:])

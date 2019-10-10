@@ -20,8 +20,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Input, Concatenate, Bidirectional, GRU
-from tensorflow.keras.layers import TimeDistributed, Dense, Attention
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.layers import TimeDistributed, Dense, Attention, LayerNormalization
 from tensorflow.keras.utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer, Progbar
 
 
@@ -102,13 +101,13 @@ class Seq2SeqAttention():
                 monitor=monitor,
                 min_delta=0,
                 factor=0.2,
-                patience=5,
+                patience=10,
                 verbose=verbose)
         ]
 
         return callbacks
 
-    def compile(self, learning_rate=0.001):
+    def compile(self, learning_rate=None):
         """
         Build models (train, encoder and decoder)
 
@@ -124,42 +123,53 @@ class Seq2SeqAttention():
             Github: https://github.com/ChunML/NLP/tree/master/machine_translation
         """
 
+        def loss_func(y_true, y_pred):
+            """Loss function with CategoryCrossentropy and label smoothing"""
+
+            return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1)(y_true, y_pred)
+
         # Encoder and Decoder Inputs
         encoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="encoder_inputs")
         decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
 
         # Encoder BiGRU
-        encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True,
-                                          name="encoder_gru", dropout=self.dropout), name="encoder_bigru")
+        encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, name="encoder_gru",
+                                      dropout=self.dropout), name="encoder_bigru")
 
         encoder_out, encoder_fwd_state, encoder_back_state = encoder_bigru(encoder_inputs)
         encoder_states = Concatenate(axis=-1)([encoder_fwd_state, encoder_back_state])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True,
-                          name="decoder_gru", dropout=self.dropout)
+        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, name="decoder_gru",
+                          dropout=self.dropout)
 
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
         # Attention layer
         attn_layer = Attention(name="attention_layer")
+
         attn_out = attn_layer([decoder_out, encoder_out])
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
+        # Normalization layer
+        norm_layer = LayerNormalization(name="normalization")
+
+        decoder_concat_input = norm_layer(decoder_concat_input)
+
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
-        dense_time = TimeDistributed(dense, name="time_distributed_layer")
+        dense_time_distributed = TimeDistributed(dense, name="time_distributed_layer")
 
-        decoder_pred = dense_time(decoder_concat_input)
+        decoder_pred = dense_time_distributed(decoder_concat_input)
 
         if learning_rate is None:
-            learning_rate = CustomSchedule(self.tokenizer.vocab_size)
+            learning_rate = CustomSchedule(d_model=self.tokenizer.vocab_size)
 
-        optimizer = Adam(learning_rate=learning_rate)
+        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
         # Full model
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
-        self.model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=["accuracy"])
+        self.model.compile(optimizer=optimizer, loss=loss_func, metrics=["accuracy"])
 
         """ Inference model """
 
@@ -180,8 +190,10 @@ class Seq2SeqAttention():
         attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
+        decoder_inf_concat = norm_layer(decoder_inf_concat)
+
         # Dense layer
-        decoder_inf_pred = TimeDistributed(dense)(decoder_inf_concat)
+        decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
 
         # Decoder model
         self.decoder = Model(inputs=[encoder_inf_states, decoder_init_state, decoder_inf_inputs],
@@ -316,22 +328,29 @@ class Seq2SeqAttention():
         return predicts
 
 
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    """
-    Custom schedule of the learning rate with warmup_steps.
-    From original paper "Attention is all you need".
-    """
+"""
+Custom Learning Rate Schedule.
 
+Reference:
+    Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and
+    Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin.
+    "Attention Is All You Need", 2017
+    arXiv, URL: https://arxiv.org/abs/1706.03762
+"""
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
     def __init__(self, d_model, warmup_steps=4000):
         super(CustomSchedule, self).__init__()
 
         self.d_model = d_model
         self.d_model = tf.cast(self.d_model, tf.float32)
+        self.d_model = tf.math.rsqrt(self.d_model)
 
         self.warmup_steps = warmup_steps
 
     def __call__(self, step):
         arg1 = tf.math.rsqrt(step)
-        arg2 = step * (self.warmup_steps**-1.5)
+        arg2 = step * (self.warmup_steps ** -1.5)
 
-        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
+        return self.d_model * tf.math.minimum(arg1, arg2)
