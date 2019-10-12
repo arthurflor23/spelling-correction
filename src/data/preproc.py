@@ -8,11 +8,10 @@ import numpy as np
 def padding_punctuation(sentence):
     """Organize/add spaces around punctuation marks"""
 
-    sentence = sentence.replace(" '", "'").replace("' ", "'")
     sentence = sentence.replace("«", "").replace("»", "")
 
     for y in sentence:
-        if y in string.punctuation.replace("'", ""):
+        if y in string.punctuation:
             sentence = sentence.replace(y, f" {y} ")
 
     sentence = " ".join(sentence.split())
@@ -76,10 +75,11 @@ Method to apply text random noise error (adapted):
 """
 
 
-def add_noise(sentences, max_text_length=128, amount_noise=0.5, level=2):
+def add_noise(sentences, max_text_length=128, amount_noise=None, level=1):
     """Add some artificial spelling mistakes to the string"""
 
-    charset = list(set(" ()[].,\"'" + string.ascii_letters + string.digits))
+    amount_noise = 0.2 if amount_noise is None else amount_noise
+    charset = list(set(string.ascii_letters + string.digits + " "))
     n_sentences = sentences.copy()
 
     for i in range(len(n_sentences)):
@@ -98,6 +98,12 @@ def add_noise(sentences, max_text_length=128, amount_noise=0.5, level=2):
                     n_sentences[i] = (n_sentences[i][:position] + n_sentences[i][position + 1] +
                                       n_sentences[i][position] + n_sentences[i][position + 2:])
 
+                # Add a random character
+                if np.random.rand() < amount_noise and len(n_sentences[i]) < max_text_length:
+                    position = np.random.randint(len(n_sentences[i]))
+                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
+                                      n_sentences[i][position:])
+
                 # Delete a character
                 if np.random.rand() < amount_noise:
                     position = np.random.randint(len(n_sentences[i]))
@@ -106,12 +112,6 @@ def add_noise(sentences, max_text_length=128, amount_noise=0.5, level=2):
                 # Delete repeated characters
                 if np.random.rand() < amount_noise:
                     n_sentences[i] = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', n_sentences[i])
-
-                # Add a random character
-                if np.random.rand() < amount_noise and len(n_sentences[i]) < max_text_length:
-                    position = np.random.randint(len(n_sentences[i]))
-                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
-                                      n_sentences[i][position:])
 
         n_sentences[i] = padding_punctuation(n_sentences[i])
         n_sentences[i] = n_sentences[i][:max_text_length - 1]

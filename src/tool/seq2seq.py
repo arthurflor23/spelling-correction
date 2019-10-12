@@ -19,7 +19,7 @@ from contextlib import redirect_stdout
 from tensorflow.keras import Model
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.layers import Input, Concatenate, Bidirectional, GRU
+from tensorflow.keras.layers import Input, Concatenate, Bidirectional, GRU, Dropout
 from tensorflow.keras.layers import TimeDistributed, Dense, Attention, LayerNormalization
 from tensorflow.keras.utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer, Progbar
 
@@ -94,14 +94,14 @@ class Seq2SeqAttention():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=0,
-                patience=20,
+                patience=40,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=0,
                 factor=0.2,
-                patience=10,
+                patience=20,
                 verbose=verbose)
         ]
 
@@ -133,15 +133,15 @@ class Seq2SeqAttention():
         decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
 
         # Encoder BiGRU
-        encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, name="encoder_gru",
-                                      dropout=self.dropout), name="encoder_bigru")
+        encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, recurrent_initializer="glorot_uniform",
+                                      kernel_regularizer=tf.keras.regularizers.l2(1e-5), dropout=self.dropout), name="encoder_bigru")
 
         encoder_out, encoder_fwd_state, encoder_back_state = encoder_bigru(encoder_inputs)
         encoder_states = Concatenate(axis=-1)([encoder_fwd_state, encoder_back_state])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, name="decoder_gru",
-                          dropout=self.dropout)
+        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, recurrent_initializer="glorot_uniform",
+                          kernel_regularizer=tf.keras.regularizers.l2(1e-5), name="decoder_gru", dropout=self.dropout)
 
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
@@ -154,6 +154,7 @@ class Seq2SeqAttention():
         # Normalization layer
         norm_layer = LayerNormalization(name="normalization")
 
+        decoder_concat_input = Dropout(rate=self.dropout)(decoder_concat_input)
         decoder_concat_input = norm_layer(decoder_concat_input)
 
         # Dense layer
@@ -190,6 +191,7 @@ class Seq2SeqAttention():
         attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
+        decoder_inf_concat = Dropout(rate=self.dropout)(decoder_inf_concat)
         decoder_inf_concat = norm_layer(decoder_inf_concat)
 
         # Dense layer

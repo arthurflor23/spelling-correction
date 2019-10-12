@@ -484,8 +484,8 @@ References:
 class PositionalEncoding(tf.keras.layers.Layer):
     """Positional encoding (features)"""
 
-    def __init__(self, position, d_model):
-        super(PositionalEncoding, self).__init__()
+    def __init__(self, position, d_model, name="PositionalEncodingLayer"):
+        super(PositionalEncoding, self).__init__(name=name)
         self.pos_encoding = self.positional_encoding(position, d_model)
 
     def get_angles(self, position, i, d_model):

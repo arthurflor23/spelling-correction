@@ -9,7 +9,7 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, charset, max_text_length=128, amount_noise=0.5):
+    def __init__(self, m2_src, batch_size, charset, max_text_length=128):
         self.tokenizer = Tokenizer(charset, max_text_length)
         self.batch_size = batch_size
 
@@ -26,7 +26,7 @@ class DataGenerator():
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
 
-        self.amount_noise = amount_noise
+        self.amount_noise = None
         self.one_hot_process(active=True)
 
     def _full_fill_dataset(self):
@@ -42,11 +42,10 @@ class DataGenerator():
     def increase_noise(self, x=0.001, from_up=None):
         """Increase the amount noise value to make a incremental learning process"""
 
-        if from_up is not None and from_up == 0:
+        if self.amount_noise is None or (from_up is not None and from_up == 0):
             self.amount_noise = 0
 
         self.amount_noise += x
-        print(self.amount_noise)
 
         for pt in ["valid", "test"]:
             self.dataset[pt]["dt"] = pp.add_noise(self.dataset[pt]["gt"], self.tokenizer.maxlen, self.amount_noise)
@@ -68,11 +67,11 @@ class DataGenerator():
             n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
             n_sen[i] = pad_sequences([n_sen[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
 
-            if reverse:
-                n_sen[i] = n_sen[i][::-1]
-
             if self.one_hot:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
+
+            if reverse:
+                n_sen[i] = n_sen[i][::-1]
 
         return np.array(n_sen)
 
@@ -89,7 +88,7 @@ class DataGenerator():
 
             targets = self.dataset["train"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(targets, add_noise=True, reverse=True)
+            inputs = self.prepare_sequence(targets, eos=True, add_noise=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -109,7 +108,7 @@ class DataGenerator():
             inputs = self.dataset["valid"]["dt"][index:until]
             targets = self.dataset["valid"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, reverse=True)
+            inputs = self.prepare_sequence(inputs, eos=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -127,7 +126,8 @@ class DataGenerator():
             self.test_index += self.batch_size
 
             inputs = self.dataset["test"]["dt"][index:until]
-            inputs = self.prepare_sequence(inputs, reverse=True)
+
+            inputs = self.prepare_sequence(inputs, eos=True)
 
             yield inputs
 
@@ -137,7 +137,7 @@ class Tokenizer():
 
     def __init__(self, chars, max_text_length=128):
         self.PAD_TK, self.SOS_TK, self.EOS_TK = "¬", "«", "»"
-        self.chars = (self.PAD_TK + self.SOS_TK + self.EOS_TK + chars)
+        self.chars = (self.PAD_TK + self.SOS_TK + chars + self.EOS_TK)
 
         self.PAD = self.chars.find(self.PAD_TK)
         self.SOS = self.chars.find(self.SOS_TK)
