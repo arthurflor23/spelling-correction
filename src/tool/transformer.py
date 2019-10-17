@@ -14,7 +14,7 @@ import tensorflow as tf
 
 from contextlib import redirect_stdout
 from tensorflow.keras import Input, Model
-from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ReduceLROnPlateau
+from tensorflow.keras.callbacks import CSVLogger, TensorBoard
 from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.layers import Dense, Dropout, LayerNormalization
 from tensorflow.keras.layers import Lambda, Embedding
@@ -104,14 +104,8 @@ class Transformer():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=0,
-                patience=20,
+                patience=40,
                 restore_best_weights=True,
-                verbose=verbose),
-            ReduceLROnPlateau(
-                monitor=monitor,
-                min_delta=0,
-                factor=0.2,
-                patience=10,
                 verbose=verbose)
         ]
 

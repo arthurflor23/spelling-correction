@@ -1,33 +1,49 @@
-"""Methods to help manager data development"""
+"""Manager data preprocess"""
 
 import re
+import html
 import string
+import unicodedata
 import numpy as np
 
 
-def padding_punctuation(sentence):
+def text_standardize(txt):
     """Organize/add spaces around punctuation marks"""
 
-    sentence = sentence.replace("«", "").replace("»", "")
+    if txt is None:
+        return ""
 
-    for y in sentence:
-        if y in string.punctuation:
-            sentence = sentence.replace(y, f" {y} ")
+    txt = html.unescape(txt).replace("\\n", "").replace("\\t", "")
+    txt = txt.translate(str.maketrans({c: f" {c} " for c in string.punctuation}))
+    txt = " " + " ".join(txt.split()) + " "
 
-    sentence = " ".join(sentence.split())
+    # replace contractions and simple quotes (preserve order)
+    keys = [["«", ""], ["»", ""],
+            [" ' ' ", " ' "], [". '", ".  '"],
+            ["' s ", "'s "], [" 's", "'s"],
+            ["' d ", "'d "], [" 'd", "'d"],
+            ["' m ", "'m "], [" 'm", "'m"],
+            ["' ll ", "'ll "], [" 'll", "'ll"],
+            ["' ve ", "'ve "], [" 've", "'ve"],
+            ["' re ", "'re "], [" 're", "'re"],
+            ["n ' t ", "n't "], [" n't", "n't"],
+            ["o ' c ", "o'c "], [" o'c", "o'c"],
+            [" ' ", " "], ["''", "'"],
+            [" '", ""], ["' ", ""]]
 
-    return sentence
+    for i in range(len(keys)):
+        txt = txt.replace(keys[i][0], keys[i][1])
+
+    txt = " ".join(txt.strip("'").split())
+
+    return txt
 
 
-def split_by_max_length(sentence, charset=None, max_text_length=128):
+def split_by_max_length(sentence, max_text_length=128):
     """Standardize n_sentences: split long n_sentences into max_text_length"""
 
     tolerance = 5
-    max_text_length -= tolerance
     new_n_sentences = []
-
-    if charset is not None:
-        sentence = "".join([c for c in sentence if c in charset])
 
     if len(sentence) < max_text_length - tolerance:
         new_n_sentences.append(sentence)
@@ -52,68 +68,81 @@ def split_by_max_length(sentence, charset=None, max_text_length=128):
     return new_n_sentences
 
 
-def shuffle(array):
-    """Modify a sequence by shuffling its contents"""
+def add_noise(sentences, max_text_length, amount_noise=0.9):
+    """Generate some artificial spelling mistakes (or not) in the sentences"""
 
-    arange = np.arange(0, len(array))
-    np.random.shuffle(arange)
-    new_array = []
+    chars = list(" " + string.ascii_letters + string.digits)
+    n_sentences = []
 
-    for i in range(len(arange)):
-        new_array.append(array[i])
-        array[i] = None
+    assert(0.0 <= amount_noise <= 1.0)
 
-    return new_array
+    for x in sentences:
+        rand = np.random.rand()
+        prob = amount_noise / 4.0
 
+        if len(x) <= 5 or rand > amount_noise:
+            # No spelling errors
+            sentence = x
 
-"""
-Method to apply text random noise error (adapted):
-    Author: Tal Weiss
-    Title: Deep Spelling, 2016
-    Article: https://machinelearnings.co/deep-spelling-9ffef96a24f6
-    Repository URL: https://github.com/MajorTal/DeepSpell
-"""
+        elif rand < prob:
+            # Add a random character
+            random_index = np.random.randint(len(x))
+            sentence = x[:random_index] + np.random.choice(chars) + x[random_index:]
 
+        elif prob * 1 < rand < prob * 2:
+            # Transpose 2 random characters
+            random_index = np.random.randint(len(x) - 1)
+            sentence = x[:random_index] + x[random_index + 1] + x[random_index] + x[random_index + 2:]
 
-def add_noise(sentences, max_text_length=128, amount_noise=None, level=1):
-    """Add some artificial spelling mistakes to the string"""
+        elif prob * 2 < rand < prob * 3:
+            # Delete characters...
+            delete_rand = np.random.rand()
+            sentence = x
 
-    amount_noise = 0.2 if amount_noise is None else amount_noise
-    charset = list(set(string.ascii_letters + string.digits + " "))
-    n_sentences = sentences.copy()
+            if delete_rand <= 0.8:
+                # by repeat characters
+                sentence = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
 
-    for i in range(len(n_sentences)):
-        for _ in range(level):
+            if sentence == x:
+                # by random characters
+                random_index = np.random.randint(len(x))
+                sentence = x[:random_index] + x[random_index + 1:]
 
-            if len(n_sentences[i]) > 4:
-                # Replace a character with a random character
-                if np.random.rand() < amount_noise:
-                    position = np.random.randint(len(n_sentences[i]))
-                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
-                                      n_sentences[i][position + 1:])
+        elif prob * 3 < rand < prob * 4:
+            # Replace characters...
+            add_rand = np.random.rand()
+            sentence = x
 
-                # Transpose 2 characters
-                if np.random.rand() < amount_noise:
-                    position = np.random.randint(len(n_sentences[i]) - 1)
-                    n_sentences[i] = (n_sentences[i][:position] + n_sentences[i][position + 1] +
-                                      n_sentences[i][position] + n_sentences[i][position + 2:])
+            if add_rand <= 0.2:
+                # by accentuation
+                sentence = unicodedata.normalize("NFKD", x).encode("ASCII", "ignore").decode("ASCII")
 
-                # Add a random character
-                if np.random.rand() < amount_noise and len(n_sentences[i]) < max_text_length:
-                    position = np.random.randint(len(n_sentences[i]))
-                    n_sentences[i] = (n_sentences[i][:position] + np.random.choice(charset[:-1]) +
-                                      n_sentences[i][position:])
+            if sentence == x and add_rand <= 0.3:
+                # by random characters
+                random_index = np.random.randint(len(x))
+                sentence = x[:random_index] + np.random.choice(chars) + x[random_index + 1:]
 
-                # Delete a character
-                if np.random.rand() < amount_noise:
-                    position = np.random.randint(len(n_sentences[i]))
-                    n_sentences[i] = n_sentences[i][:position] + n_sentences[i][position + 1:]
+            if sentence == x:
+                # by similar characters
 
-                # Delete repeated characters
-                if np.random.rand() < amount_noise:
-                    n_sentences[i] = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', n_sentences[i])
+                # The list below was created by `similar_error_analysis.py` code.
+                # URL: https://github.com/arthurflor23/handwritten-text-recognition/blob/master/src/data/similar_error_analysis.py
+                similar = 
+                np.random.shuffle(similar)
 
-        n_sentences[i] = padding_punctuation(n_sentences[i])
-        n_sentences[i] = n_sentences[i][:max_text_length - 1]
+                for item in similar:
+                    if np.random.rand() < 0.5:
+                        item = item[::-1]
+
+                    item[0] = item[0].upper() if np.random.rand() < 0.5 else item[0].lower()
+                    item[1] = item[1].upper() if np.random.rand() < 0.5 else item[1].lower()
+
+                    sentence = sentence.replace(item[0], item[1])
+
+                    if sentence != x:
+                        break
+
+        sentence = text_standardize(sentence)
+        n_sentences.append(sentence)
 
     return n_sentences

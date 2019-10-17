@@ -18,6 +18,7 @@ import os
 import time
 import argparse
 import importlib
+import numpy as np
 
 from tool.symspell import Symspell
 from tool.seq2seq import Seq2SeqAttention
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="seq2seq")
     parser.add_argument("--N", type=int, default=2)
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=128)
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--test", action="store_true", default=False)
     args = parser.parse_args()
@@ -45,7 +46,7 @@ if __name__ == "__main__":
 
     max_text_length = 128
     charset_base = "".join([chr(i) for i in range(32, 127)])
-    charset_special = "".join([chr(i) for i in range(192, 256)])
+    charset_special = "".join([chr(i) for i in range(192, 255)])
 
     if args.transform:
         dataset_list = next(os.walk(raw_path))[1] if args.dataset == "all" else [args.dataset]
@@ -72,12 +73,12 @@ if __name__ == "__main__":
                 print(f"The {dataset} dataset not found...")
                 pass
 
-        train = pp.shuffle(train)
-        valid = pp.shuffle(valid)
-        test = pp.shuffle(test)
+        np.random.shuffle(train)
+        np.random.shuffle(valid)
+        np.random.shuffle(test)
 
-        valid_noised = pp.add_noise(valid)
-        test_noised = pp.add_noise(test)
+        valid_noised = pp.add_noise(valid, max_text_length)
+        test_noised = pp.add_noise(test, max_text_length)
 
         current_metric = evaluation.ocr_metrics(test_noised, test)
 
@@ -145,16 +146,15 @@ if __name__ == "__main__":
 
         else:
             if args.mode == "transformer":
-                dtgen.one_hot_process(False)
+                dtgen.one_hot_process = False
                 model = Transformer(num_layers=2, units=128, d_model=256, num_heads=4,
                                     dropout=0.1, tokenizer=dtgen.tokenizer)
 
             elif args.mode == "seq2seq":
-                # dtgen.increase_noise(0.001, from_up=0)
-                model = Seq2SeqAttention(units=128, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Seq2SeqAttention(units=128, dropout=0.2, tokenizer=dtgen.tokenizer)
 
-            # set parameter `learning_rate` to customize or set `None` to get default schedule function
-            model.compile(learning_rate=0.001)
+            # set parameter `learning_rate` to customize or get default value of the model
+            model.compile()
 
             checkpoint = "checkpoint_weights.hdf5"
             model.load_checkpoint(target=os.path.join(output_path, checkpoint))
@@ -189,8 +189,8 @@ if __name__ == "__main__":
                     f"Total validation sentences: {dtgen.total_valid}",
                     f"Batch:                      {dtgen.batch_size}\n",
                     f"Total epochs:               {len(accuracy)}",
-                    f"Total time:                 {total_time:.8f} sec",
-                    f"Time per epoch:             {time_epoch:.8f} sec",
+                    f"Total time:                 {(total_time / 60):.2f} min",
+                    f"Time per epoch:             {(time_epoch / 60):.2f} min",
                     f"Time per item:              {(time_epoch / total_item):.8f} sec\n",
                     f"Best epoch                  {best_epoch_index + 1}",
                     f"Training loss:              {loss[best_epoch_index]:.8f}",

@@ -1,6 +1,7 @@
 """Transform IAM dataset"""
 
 import os
+import numpy as np
 from data import preproc as pp
 
 
@@ -21,10 +22,13 @@ class Transform():
                 continue
 
             splitted = line.split()
-            self.lines[splitted[0]] = " ".join(splitted[-1].replace("|", " ").split())
+
+            if splitted[1] == "ok":
+                self.lines[splitted[0]] = " ".join(splitted[8::]).replace("|", " ")
 
         self.partitions["train"] = self._build_partition("trainset.txt")
         self.partitions["valid"] = self._build_partition("validationset1.txt")
+        self.partitions["valid"] += self._build_partition("validationset2.txt")
         self.partitions["test"] = self._build_partition("testset.txt")
 
     def _build_partition(self, partition):
@@ -36,8 +40,8 @@ class Transform():
             lines.append(self.lines[partition])
 
         lines = list(set(lines))
-        lines = [pp.padding_punctuation(x) for x in lines]
-        lines = [y for x in lines for y in pp.split_by_max_length(x, self.charset, self.max_text_length)]
-        lines = pp.shuffle(lines)
+        lines = [y for x in lines for y in pp.split_by_max_length(x, self.max_text_length)]
+        lines = [pp.text_standardize(x) for x in lines]
+        np.random.shuffle(lines)
 
         return lines

@@ -1,7 +1,6 @@
 """Generator function to supply train/test with text data"""
 
 import numpy as np
-import tensorflow as tf
 from data import preproc as pp, m2
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
@@ -14,7 +13,7 @@ class DataGenerator():
         self.batch_size = batch_size
 
         self.dataset = m2.read_dataset(m2_src)
-        self._full_fill_dataset()
+        self._prepare_dataset()
 
         self.total_train = len(self.dataset["train"]["gt"])
         self.total_valid = len(self.dataset["valid"]["gt"])
@@ -25,33 +24,22 @@ class DataGenerator():
         self.test_steps = np.maximum(self.total_test // batch_size, 1)
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
+        self.one_hot_process = True
 
-        self.amount_noise = None
-        self.one_hot_process(active=True)
-
-    def _full_fill_dataset(self):
-        """Make full fill dataset up to batch size and steps"""
+    def _prepare_dataset(self):
+        """Prepare (text standardize and full fill) dataset up"""
 
         for pt in ["train", "valid", "test"]:
+            # text standardize to avoid erros
+            self.dataset[pt]["dt"] = [pp.text_standardize(x) for x in self.dataset[pt]["dt"]]
+            self.dataset[pt]["gt"] = [pp.text_standardize(x) for x in self.dataset[pt]["gt"]]
+
+            # full fill process to make up batch_size and steps
             while len(self.dataset[pt]["gt"]) % self.batch_size:
                 i = np.random.choice(np.arange(0, len(self.dataset[pt]["gt"])), 1)[0]
 
                 self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
                 self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
-
-    def increase_noise(self, x=0.001, from_up=None):
-        """Increase the amount noise value to make a incremental learning process"""
-
-        if self.amount_noise is None or (from_up is not None and from_up == 0):
-            self.amount_noise = 0
-
-        self.amount_noise += x
-
-        for pt in ["valid", "test"]:
-            self.dataset[pt]["dt"] = pp.add_noise(self.dataset[pt]["gt"], self.tokenizer.maxlen, self.amount_noise)
-
-    def one_hot_process(self, active=True):
-        self.one_hot = active
 
     def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False, reverse=False):
         """Prepare inputs to feed the model"""
@@ -62,12 +50,12 @@ class DataGenerator():
 
         for i in range(len(n_sen)):
             if add_noise:
-                n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen, self.amount_noise)[0]
+                n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen)[0]
 
             n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
             n_sen[i] = pad_sequences([n_sen[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
 
-            if self.one_hot:
+            if self.one_hot_process:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
 
             if reverse:
@@ -136,10 +124,11 @@ class Tokenizer():
     """Manager tokens functions and charset/dictionary properties"""
 
     def __init__(self, chars, max_text_length=128):
-        self.PAD_TK, self.SOS_TK, self.EOS_TK = "¬", "«", "»"
-        self.chars = (self.PAD_TK + self.SOS_TK + chars + self.EOS_TK)
+        self.PAD_TK, self.UNK_TK, self.SOS_TK, self.EOS_TK = "¶", "¥", "«", "»"
+        self.chars = (self.PAD_TK + self.UNK_TK + chars + self.SOS_TK + self.EOS_TK)
 
         self.PAD = self.chars.find(self.PAD_TK)
+        self.UNK = self.chars.find(self.UNK_TK)
         self.SOS = self.chars.find(self.SOS_TK)
         self.EOS = self.chars.find(self.EOS_TK)
 
@@ -149,7 +138,14 @@ class Tokenizer():
     def encode(self, text):
         """Encode text to vector"""
 
-        return np.array([self.chars.find(x) for x in text])
+        encoded = []
+
+        for item in text:
+            index = self.chars.find(item)
+            index = self.UNK if index == -1 else index
+            encoded.append(index)
+
+        return np.array(encoded)
 
     def decode(self, text):
         """Decode vector to text"""
@@ -162,16 +158,19 @@ class Tokenizer():
         encoded = np.zeros((len(vector), self.vocab_size))
 
         for i in range(len(vector)):
-            encoded[i][int(vector[i])] = 1.0
+            try:
+                encoded[i][int(vector[i])] = 1.0
+            except KeyError:
+                encoded[i][int(self.UNK)] = 1.0
 
         return np.array(encoded)
 
     def decode_one_hot(self, one_hot):
         """Decode one-hot to vector"""
 
-        return tf.argmax(one_hot, axis=1)
+        return np.argmax(one_hot, axis=1)
 
     def remove_tokens(self, text):
         """Remove tokens (PAD, SOS, EOS) from text"""
 
-        return text.replace(self.SOS_TK, "").replace(self.EOS_TK, "").replace(self.PAD_TK, "")
+        return text.replace(self.PAD_TK, "").replace(self.SOS_TK, "").replace(self.EOS_TK, "")

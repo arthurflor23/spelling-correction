@@ -1,7 +1,7 @@
 """Transform 1-Billion Google dataset (subset)"""
 
 import os
-from multiprocessing import Pool
+import numpy as np
 from data import preproc as pp
 
 
@@ -30,23 +30,20 @@ class Transform():
                         lines_fr.append(line)
                     lines_fr = list(set(lines_fr))[::-1]
 
-        # if dataset only 'google', english and french will be 75% samples (around 12 M).
-        # if dataset is 'all', english and french will be 7.5% samples (around 1.2 M).
+        # if dataset only 'google', english and french will be 70% samples (around 10 M).
+        # if dataset is 'all', english and french will be 7% samples (around 1 M).
         # this make a balance samples with the other datasets.
-        factor = 0.85 if only else 0.085
+        factor = 0.7 if only else 0.14
+
         lines_en = lines_en[:int(len(lines_en) * factor)]
         lines_fr = lines_fr[:int(len(lines_fr) * factor)]
 
         lines = lines_en + lines_fr
         del lines_en, lines_fr
 
-        pool = Pool()
-        lines = pool.map(pp.padding_punctuation, lines)
-        pool.close()
-        pool.join()
-
-        lines = [y for x in lines for y in pp.split_by_max_length(x, self.charset, self.max_text_length)]
-        lines = pp.shuffle(lines)
+        lines = [y for x in lines for y in pp.split_by_max_length(x, self.max_text_length)]
+        lines = [pp.text_standardize(x) for x in lines]
+        np.random.shuffle(lines)
 
         train_i = int(len(lines) * 0.8)
         valid_i = train_i + int((len(lines) - train_i) / 2)

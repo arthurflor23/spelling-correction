@@ -132,16 +132,14 @@ class Seq2SeqAttention():
         encoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="encoder_inputs")
         decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
 
-        # Encoder BiGRU
-        encoder_bigru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, recurrent_initializer="glorot_uniform",
-                                      kernel_regularizer=tf.keras.regularizers.l2(1e-5), dropout=self.dropout), name="encoder_bigru")
+        # Encoder bgru
+        encoder_bgru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, dropout=self.dropout), name="encoder_bgru")
 
-        encoder_out, encoder_fwd_state, encoder_back_state = encoder_bigru(encoder_inputs)
+        encoder_out, encoder_fwd_state, encoder_back_state = encoder_bgru(encoder_inputs)
         encoder_states = Concatenate(axis=-1)([encoder_fwd_state, encoder_back_state])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, recurrent_initializer="glorot_uniform",
-                          kernel_regularizer=tf.keras.regularizers.l2(1e-5), name="decoder_gru", dropout=self.dropout)
+        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, dropout=self.dropout, name="decoder_gru")
 
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
@@ -164,7 +162,7 @@ class Seq2SeqAttention():
         decoder_pred = dense_time_distributed(decoder_concat_input)
 
         if learning_rate is None:
-            learning_rate = CustomSchedule(d_model=self.tokenizer.vocab_size)
+            learning_rate = 0.001
 
         optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
 
@@ -328,31 +326,3 @@ class Seq2SeqAttention():
                 enqueuer.stop()
 
         return predicts
-
-
-"""
-Custom Learning Rate Schedule.
-
-Reference:
-    Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and
-    Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin.
-    "Attention Is All You Need", 2017
-    arXiv, URL: https://arxiv.org/abs/1706.03762
-"""
-
-
-class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
-    def __init__(self, d_model, warmup_steps=4000):
-        super(CustomSchedule, self).__init__()
-
-        self.d_model = d_model
-        self.d_model = tf.cast(self.d_model, tf.float32)
-        self.d_model = tf.math.rsqrt(self.d_model)
-
-        self.warmup_steps = warmup_steps
-
-    def __call__(self, step):
-        arg1 = tf.math.rsqrt(step)
-        arg2 = step * (self.warmup_steps ** -1.5)
-
-        return self.d_model * tf.math.minimum(arg1, arg2)

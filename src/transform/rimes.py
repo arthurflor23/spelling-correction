@@ -2,6 +2,7 @@
 
 import os
 import html
+import numpy as np
 import xml.etree.ElementTree as ET
 from data import preproc as pp
 
@@ -38,8 +39,8 @@ class Transform():
                     lines.append(text_line)
 
         lines = list(set(lines))
-        lines = [pp.padding_punctuation(x) for x in lines]
-        lines = [y for x in lines for y in pp.split_by_max_length(x, self.charset, self.max_text_length)]
-        lines = pp.shuffle(lines)
+        lines = [y for x in lines for y in pp.split_by_max_length(x, self.max_text_length)]
+        lines = [pp.text_standardize(x) for x in lines]
+        np.random.shuffle(lines)
 
         return lines
