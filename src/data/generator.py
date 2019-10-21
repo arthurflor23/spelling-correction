@@ -24,6 +24,8 @@ class DataGenerator():
         self.test_steps = np.maximum(self.total_test // batch_size, 1)
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
+
+        self.noise_process = (len(max(self.dataset["train"]["dt"])) == 0)
         self.one_hot_process = True
 
     def _prepare_dataset(self):
@@ -76,7 +78,12 @@ class DataGenerator():
 
             targets = self.dataset["train"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(targets, eos=True, add_noise=True)
+            if self.noise_process:
+                inputs = self.prepare_sequence(targets, eos=True, add_noise=True)
+            else:
+                inputs = self.dataset["train"]["dt"][index:until]
+                inputs = self.prepare_sequence(inputs, eos=True, add_noise=False)
+
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 

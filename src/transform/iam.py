@@ -37,7 +37,10 @@ class Transform():
         lines = []
 
         for partition in partition_list:
-            lines.append(self.lines[partition])
+            try:
+                lines.append(self.lines[partition])
+            except KeyError:
+                pass
 
         lines = list(set(lines))
         lines = [y for x in lines for y in pp.split_by_max_length(x, self.max_text_length)]
