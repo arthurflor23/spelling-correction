@@ -33,7 +33,7 @@ class Transform():
         # if dataset only 'google', english and french will be 70% samples (around 10 M).
         # if dataset is 'all', english and french will be 7% samples (around 1 M).
         # this make a balance samples with the other datasets.
-        factor = 0.7 if only else 0.14
+        factor = 0.7 if only else 0.07
 
         lines_en = lines_en[:int(len(lines_en) * factor)]
         lines_fr = lines_fr[:int(len(lines_fr) * factor)]

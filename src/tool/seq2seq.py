@@ -20,7 +20,7 @@ from tensorflow.keras import Model
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Input, Concatenate, Bidirectional, GRU, Dropout
-from tensorflow.keras.layers import TimeDistributed, Dense, Attention, LayerNormalization
+from tensorflow.keras.layers import TimeDistributed, Dense, AdditiveAttention, LayerNormalization
 from tensorflow.keras.utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer, Progbar
 
 
@@ -94,14 +94,14 @@ class Seq2SeqAttention():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=0,
-                patience=40,
+                patience=20,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=0,
                 factor=0.2,
-                patience=20,
+                patience=10,
                 verbose=verbose)
         ]
 
@@ -123,28 +123,26 @@ class Seq2SeqAttention():
             Github: https://github.com/ChunML/NLP/tree/master/machine_translation
         """
 
-        def loss_func(y_true, y_pred):
-            """Loss function with CategoryCrossentropy and label smoothing"""
-
-            return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1)(y_true, y_pred)
-
         # Encoder and Decoder Inputs
         encoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="encoder_inputs")
         decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
 
         # Encoder bgru
-        encoder_bgru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True, dropout=self.dropout), name="encoder_bgru")
+        encoder_bgru = Bidirectional(GRU(self.units, return_sequences=True, return_state=True,
+                                         dropout=self.dropout), name="encoder_bgru")
 
         encoder_out, encoder_fwd_state, encoder_back_state = encoder_bgru(encoder_inputs)
         encoder_states = Concatenate(axis=-1)([encoder_fwd_state, encoder_back_state])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
-        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True, dropout=self.dropout, name="decoder_gru")
+        decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True,
+                          dropout=self.dropout, name="decoder_gru")
 
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
         # Attention layer
-        attn_layer = Attention(name="attention_layer")
+        # attn_layer = Attention(name="attention_layer")
+        attn_layer = AdditiveAttention(name="attention_layer")
 
         attn_out = attn_layer([decoder_out, encoder_out])
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
@@ -168,7 +166,7 @@ class Seq2SeqAttention():
 
         # Full model
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
-        self.model.compile(optimizer=optimizer, loss=loss_func, metrics=["accuracy"])
+        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=["accuracy"])
 
         """ Inference model """
 
@@ -198,6 +196,12 @@ class Seq2SeqAttention():
         # Decoder model
         self.decoder = Model(inputs=[encoder_inf_states, decoder_init_state, decoder_inf_inputs],
                              outputs=[decoder_inf_pred, decoder_inf_state])
+
+    @staticmethod
+    def loss_func(y_true, y_pred):
+        """Loss function with CategoryCrossentropy and label smoothing"""
+
+        return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1, reduction="none")(y_true, y_pred)
 
     def fit_generator(self,
                       generator,
