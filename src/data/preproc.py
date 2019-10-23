@@ -18,7 +18,8 @@ def text_standardize(txt):
     txt = " " + " ".join(txt.split()) + " "
 
     # replace contractions and simple quotes (preserve order)
-    keys = [["«", ""], ["»", ""],
+    keys = [["«", ""], ["»", ""], ["�", ""],
+            ["”", " \" "], ["“", " \" "],
             [" ' ' ", " ' "], [". '", ".  '"],
             ["' s ", "'s "], [" 's", "'s"],
             ["' d ", "'d "], [" 'd", "'d"],
@@ -68,7 +69,7 @@ def split_by_max_length(sentence, max_text_length=128):
     return new_n_sentences
 
 
-def add_noise(sentences, max_text_length, amount_noise=0.9):
+def add_noise(sentences, max_text_length, amount_noise=0.8):
     """Generate some artificial spelling mistakes (or not) in the sentences"""
 
     chars = list(" " + string.ascii_letters + string.digits)
@@ -77,72 +78,50 @@ def add_noise(sentences, max_text_length, amount_noise=0.9):
     assert(0.0 <= amount_noise <= 1.0)
 
     for x in sentences:
-        rand = np.random.rand()
-        prob = amount_noise / 4.0
+        if len(x) > 2:
+            prob = 0.1 if len(x) <= 5 else amount_noise
 
-        if len(x) <= 5 or rand > amount_noise:
-            # No spelling errors
-            sentence = x
+            if np.random.rand() <= prob:
+                # Delete characters...
+                delete_rand = np.random.rand()
+                sentence = x
 
-        elif rand < prob:
-            # Add a random character
-            random_index = np.random.randint(len(x))
-            sentence = x[:random_index] + np.random.choice(chars) + x[random_index:]
+                if delete_rand <= 0.8:
+                    # by repeat characters
+                    x = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
 
-        elif prob * 1 < rand < prob * 2:
-            # Transpose 2 random characters
-            random_index = np.random.randint(len(x) - 1)
-            sentence = x[:random_index] + x[random_index + 1] + x[random_index] + x[random_index + 2:]
+                if sentence == x:
+                    # by random characters
+                    random_index = np.random.randint(len(x))
+                    x = x[:random_index] + x[random_index + 1:]
 
-        elif prob * 2 < rand < prob * 3:
-            # Delete characters...
-            delete_rand = np.random.rand()
-            sentence = x
+            if np.random.rand() <= prob:
+                # Replace characters...
+                add_rand = np.random.rand()
+                sentence = x
 
-            if delete_rand <= 0.8:
-                # by repeat characters
-                sentence = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
+                # if add_rand <= 0.1:
+                if add_rand <= 0.2:
+                    # by accentuation
+                    x = unicodedata.normalize("NFKD", x).encode("ASCII", "ignore").decode("ASCII")
 
-            if sentence == x:
-                # by random characters
+                # if sentence == x and add_rand <= 0.2:
+                if sentence == x and add_rand > 0.2:
+                    # by random characters
+                    random_index = np.random.randint(len(x))
+                    x = x[:random_index] + np.random.choice(chars) + x[random_index + 1:]
+
+            if np.random.rand() <= prob:
+                # Add a random character
                 random_index = np.random.randint(len(x))
-                sentence = x[:random_index] + x[random_index + 1:]
+                x = x[:random_index] + np.random.choice(chars) + x[random_index:]
 
-        elif prob * 3 < rand < prob * 4:
-            # Replace characters...
-            add_rand = np.random.rand()
-            sentence = x
+            if np.random.rand() <= prob:
+                # Transpose 2 random characters
+                random_index = np.random.randint(len(x) - 1)
+                x = x[:random_index] + x[random_index + 1] + x[random_index] + x[random_index + 2:]
 
-            if add_rand <= 0.2:
-                # by accentuation
-                sentence = unicodedata.normalize("NFKD", x).encode("ASCII", "ignore").decode("ASCII")
-
-            if sentence == x and add_rand <= 0.3:
-                # by random characters
-                random_index = np.random.randint(len(x))
-                sentence = x[:random_index] + np.random.choice(chars) + x[random_index + 1:]
-
-            if sentence == x:
-                # by similar characters
-
-                # The list below was created by `similar_error_analysis.py` code.
-                # URL: https://github.com/arthurflor23/handwritten-text-recognition/blob/master/src/data/similar_error_analysis.py
-                similar = 
-                np.random.shuffle(similar)
-
-                for item in similar:
-                    if np.random.rand() < 0.5:
-                        item = item[::-1]
-
-                    item[0] = item[0].upper() if np.random.rand() < 0.5 else item[0].lower()
-                    item[1] = item[1].upper() if np.random.rand() < 0.5 else item[1].lower()
-
-                    sentence = sentence.replace(item[0], item[1])
-
-                    if sentence != x:
-                        break
-
-        sentence = text_standardize(sentence)
-        n_sentences.append(sentence)
+        x = text_standardize(x)
+        n_sentences.append(x)
 
     return n_sentences

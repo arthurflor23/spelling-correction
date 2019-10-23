@@ -51,8 +51,11 @@ class Transformer():
         self.num_heads = num_heads
         self.dropout = dropout
 
-        self.tokenizer = tokenizer
         self.d_model = d_model
+        self.tokenizer = tokenizer
+
+        global MAXLENGH
+        MAXLENGH = self.tokenizer.maxlen
 
         self.model = None
         self.encoder = None
@@ -104,7 +107,7 @@ class Transformer():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=0,
-                patience=40,
+                patience=20,
                 restore_best_weights=True,
                 verbose=verbose)
         ]
@@ -147,6 +150,7 @@ class Transformer():
     def accuracy(y_true, y_pred):
         """Accuracy function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
+        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
         accuracy = tf.metrics.SparseCategoricalAccuracy()(y_true, y_pred)
         return accuracy
 
@@ -154,6 +158,7 @@ class Transformer():
     def loss_func(y_true, y_pred):
         """Loss function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
+        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
         loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction="none")(y_true, y_pred)
         mask = tf.cast(tf.not_equal(y_true, 0), dtype="float32")
         loss = tf.multiply(loss, mask)
@@ -352,15 +357,15 @@ class Transformer():
         """
 
         en_input = tf.expand_dims(sentence, axis=0)
-        dec_input = tf.expand_dims([self.tokenizer.SOS], axis=0)
-
         en_output, en_mask = self.encoder.predict(en_input)
+
+        dec_input = tf.expand_dims([self.tokenizer.SOS], axis=0)
 
         for _ in range(self.tokenizer.maxlen):
             dec_output = self.decoder.predict([dec_input, en_output, en_mask])
             predicted_id = tf.cast(tf.argmax(dec_output[:, -1:, :], axis=-1), dtype="int32")
 
-            if dec_input.get_shape()[1] > len(sentence) or predicted_id == self.tokenizer.EOS:
+            if tf.equal(predicted_id, self.tokenizer.EOS):
                 break
 
             # concatenated the predicted_id to the output

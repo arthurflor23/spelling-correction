@@ -25,8 +25,8 @@ def read_dataset(file_name):
         if arr[0] == "TR_L":
             train["gt"].append(x)
             train["dt"].append(None)
-        # elif arr[0] == "TR_P":
-        #     train["dt"][-1] = x
+        elif arr[0] == "TR_P":
+            train["dt"][-1] = x
 
         if arr[0] == "VA_L":
             valid["gt"].append(x)
