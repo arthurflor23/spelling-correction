@@ -7,7 +7,7 @@ Provides options via the command line to perform project tasks.
     `symspell`:
         * `--N`: max edit distance (2 by default)
 
-    `seq2seq`, `transformer`:
+    `luong`, `bahdanau`, `transformer`:
         * `--train`: train the model
         * `--test`: predict and evaluate sentences
         * `--epochs`: number of epochs
@@ -31,7 +31,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, default="all")
     parser.add_argument("--transform", action="store_true", default=False)
-    parser.add_argument("--mode", type=str, default="seq2seq")
+    parser.add_argument("--mode", type=str, default="bahdanau")
     parser.add_argument("--N", type=int, default=2)
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=32)
@@ -147,11 +147,9 @@ if __name__ == "__main__":
         else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(num_layers=2, units=512, d_model=256, num_heads=2,
-                                    dropout=0.1, tokenizer=dtgen.tokenizer)
-
-            elif args.mode == "seq2seq":
-                model = Seq2SeqAttention(units=512, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Transformer(num_layers=2, units=2048, d_model=256, num_heads=2, dropout=0.1, tokenizer=dtgen.tokenizer)
+            else:
+                model = Seq2SeqAttention(arch=args.mode, units=512, dropout=0.1, tokenizer=dtgen.tokenizer)
 
             # set parameter `learning_rate` to customize or get default value of the model
             model.compile()

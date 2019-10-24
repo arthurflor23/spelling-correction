@@ -1,8 +1,6 @@
 <img src="https://github.com/arthurflor23/text-correction/blob/master/doc/image/header.png?raw=true">
 
-A text corrector system implemented using [SymSpell](https://github.com/mammothb/symspellpy) and [Transformer](https://www.tensorflow.org/) (with TensorFlow 2.0). This project supports several text datasets and uses a noise function to create more data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
-
-This project has a Statistical Language Model approach and a Neural Network approach, both with the purpose of simple text correction (a simple approach to the spell checker).
+A text corrector system implemented using the Statistical Language Model ([SymSpell](https://github.com/mammothb/symspellpy)) and Neural Network ([Seq2Seq](https://towardsdatascience.com/seq2seq-model-in-tensorflow-ec0c557e560f) and [Transformer](https://www.tensorflow.org/tutorials/text/transformer)) (using TensorFlow 2.0). This project supports several text datasets and uses a noise function to create more data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
 
 **Notes**:
 1. All **references** are commented in the code.
@@ -44,15 +42,15 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
     * `--N`: max edit distance (2 by default)
 
-  `seq2seq`, `transformer`:
+  `luong`, `bahdanau`, `transformer`:
 
-        * `--train`: train the model
+    * `--train`: train the model
 
-        * `--test`: predict and evaluate sentences
+    * `--test`: predict and evaluate sentences
 
-        * `--epochs`: number of epochs
+    * `--epochs`: number of epochs
 
-        * `--batch_size`: number of batches
+    * `--batch_size`: number of batches
 
 ## Tutorial (Google Colab/Drive)
 

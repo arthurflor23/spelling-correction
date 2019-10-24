@@ -19,27 +19,22 @@ from contextlib import redirect_stdout
 from tensorflow.keras import Model
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.layers import Input, Concatenate, Bidirectional, GRU, Dropout
-from tensorflow.keras.layers import TimeDistributed, Dense, AdditiveAttention, LayerNormalization
+from tensorflow.keras.layers import Concatenate, Attention, AdditiveAttention
+from tensorflow.keras.layers import Input, Bidirectional, LSTM, GRU
+from tensorflow.keras.layers import TimeDistributed, Dense, Dropout, LayerNormalization
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer, Progbar
 
 
 class Seq2SeqAttention():
     """
     Seq2Seq with Attention implementation.
-    This class model has the Bahdanau approach arch with the Luong-style attention.
-
-    References:
-        Minh-Thang Luong and Hieu Pham and Christopher D. Manning
-        Effective Approaches to Attention-based Neural Machine Translation, 2015
-        arXiv, URL: https://arxiv.org/abs/1508.04025
-
-        Dzmitry Bahdanau and Kyunghyun Cho and Yoshua Bengio
-        Neural Machine Translation by Jointly Learning to Align and Translate, 2014
-        arXiv, URL: https://arxiv.org/abs/1409.0473
+    This class implement Luong and Bahdanau architectures with layer normalization approach.
     """
 
-    def __init__(self, units, dropout, tokenizer):
+    def __init__(self, arch, units, dropout, tokenizer):
+        self.arch = arch
         self.units = units
         self.dropout = dropout
         self.tokenizer = tokenizer
@@ -123,6 +118,106 @@ class Seq2SeqAttention():
             Github: https://github.com/ChunML/NLP/tree/master/machine_translation
         """
 
+        if learning_rate is None:
+            learning_rate = 0.001
+
+        if self.arch == "luong":
+            self._luong_compile(learning_rate)
+
+        elif self.arch == "bahdanau":
+            self._bahdanau_compile(learning_rate)
+
+    def _luong_compile(self, learning_rate):
+        """
+        Reference:
+            Minh-Thang Luong and Hieu Pham and Christopher D. Manning
+            Effective Approaches to Attention-based Neural Machine Translation, 2015
+            arXiv, URL: https://arxiv.org/abs/1508.04025
+        """
+
+        # Encoder and Decoder Inputs
+        encoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="encoder_inputs")
+        decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
+
+        # Encoder LSTM
+        encoder_lstm = LSTM(self.units, return_sequences=True, return_state=False,
+                            dropout=self.dropout, name="encoder_lstm_1")
+
+        encoder_out = encoder_lstm(encoder_inputs)
+
+        encoder_lstm = LSTM(self.units, return_sequences=False, return_state=True,
+                            dropout=self.dropout, name="encoder_lstm_2")
+
+        _, state_h, state_c = encoder_lstm(encoder_out)
+
+        # Decoder LSTM
+        decoder_lstm = LSTM(self.units, return_sequences=True, return_state=True,
+                            dropout=self.dropout, name="decoder_lstm")
+        decoder_out, _, _ = decoder_lstm(decoder_inputs, initial_state=[state_h, state_c])
+
+        # Attention layer
+        attn_layer = Attention(name="attention_layer")
+
+        attn_out = attn_layer([decoder_out, encoder_out])
+        decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
+
+        # Dropout and Normalization layer
+        normalization = LayerNormalization(name="normalization")
+        decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
+
+        # Dense layer
+        dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
+        dense_time_distributed = TimeDistributed(dense, name="time_distributed_layer")
+
+        decoder_pred = dense_time_distributed(decoder_concat_input)
+
+        """ Train model """
+        self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
+
+        optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
+        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=["accuracy"])
+
+        """ Inference model """
+
+        """ Encoder (Inference) model """
+        self.encoder = Model(inputs=encoder_inputs, outputs=[encoder_out, state_h, state_c])
+
+        """ Decoder (Inference) model """
+        # Decoder Inputs (states)
+        decoder_inf_inputs = Input(shape=(1, self.tokenizer.vocab_size), name="decoder_inf_inputs")
+        encoder_inf_states = Input(shape=(self.tokenizer.maxlen, self.units), name="encoder_inf_states")
+
+        decoder_init_states = Input(shape=(self.units * 2), name="decoder_init")
+        state_h, state_c = tf.split(decoder_init_states, num_or_size_splits=2, axis=-1)
+
+        # Decoder LSTM
+        decoder_inf_out, state_inf_h, state_inf_c = decoder_lstm(decoder_inf_inputs, initial_state=[state_h, state_c])
+        decoder_inf_states = Concatenate(axis=-1)([state_inf_h, state_inf_c])
+
+        # Attention layer
+        attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
+        decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
+
+        # Dropout and Normalization layer
+        decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
+
+        # Dense layer
+        decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
+
+        # Decoder model
+        self.decoder = Model(inputs=[encoder_inf_states, decoder_init_states, decoder_inf_inputs],
+                             outputs=[decoder_inf_pred, decoder_inf_states])
+
+    def _bahdanau_compile(self, learning_rate):
+        """
+        Arch based on Bahdanau and Transformer model approach.
+
+            Reference:
+                Dzmitry Bahdanau and Kyunghyun Cho and Yoshua Bengio
+                Neural Machine Translation by Jointly Learning to Align and Translate, 2014
+                arXiv, URL: https://arxiv.org/abs/1409.0473
+        """
+
         # Encoder and Decoder Inputs
         encoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="encoder_inputs")
         decoder_inputs = Input(shape=(None, self.tokenizer.vocab_size), name="decoder_inputs")
@@ -141,17 +236,14 @@ class Seq2SeqAttention():
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
         # Attention layer
-        # attn_layer = Attention(name="attention_layer")
         attn_layer = AdditiveAttention(name="attention_layer")
 
         attn_out = attn_layer([decoder_out, encoder_out])
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
-        # Normalization layer
-        norm_layer = LayerNormalization(name="normalization")
-
-        decoder_concat_input = Dropout(rate=self.dropout)(decoder_concat_input)
-        decoder_concat_input = norm_layer(decoder_concat_input)
+        # Dropout and Normalization layer
+        normalization = LayerNormalization(name="normalization")
+        decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -159,24 +251,20 @@ class Seq2SeqAttention():
 
         decoder_pred = dense_time_distributed(decoder_concat_input)
 
-        if learning_rate is None:
-            learning_rate = 0.001
-
-        optimizer = tf.keras.optimizers.Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
-
-        # Full model
+        """ Train model """
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
+
+        optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5)
         self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=["accuracy"])
 
         """ Inference model """
 
         """ Encoder (Inference) model """
-        # Encoder model
         self.encoder = Model(inputs=encoder_inputs, outputs=[encoder_out, encoder_fwd_state, encoder_back_state])
 
         """ Decoder (Inference) model """
         # Decoder Inputs (states)
-        decoder_inf_inputs = Input(shape=(1, self.tokenizer.vocab_size), name="decoder_word_inputs")
+        decoder_inf_inputs = Input(shape=(1, self.tokenizer.vocab_size), name="decoder_inf_inputs")
         encoder_inf_states = Input(shape=(self.tokenizer.maxlen, self.units * 2), name="encoder_inf_states")
         decoder_init_state = Input(shape=(self.units * 2), name="decoder_init")
 
@@ -187,8 +275,8 @@ class Seq2SeqAttention():
         attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
-        decoder_inf_concat = Dropout(rate=self.dropout)(decoder_inf_concat)
-        decoder_inf_concat = norm_layer(decoder_inf_concat)
+        # Dropout and Normalization layer
+        decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
@@ -201,7 +289,7 @@ class Seq2SeqAttention():
     def loss_func(y_true, y_pred):
         """Loss function with CategoryCrossentropy and label smoothing"""
 
-        return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1, reduction="none")(y_true, y_pred)
+        return CategoricalCrossentropy(label_smoothing=0.1, reduction="none")(y_true, y_pred)
 
     def fit_generator(self,
                       generator,

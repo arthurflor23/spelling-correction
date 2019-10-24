@@ -27,6 +27,7 @@ class DataGenerator():
 
         self.noise_process = (len(max(self.dataset["train"]["dt"])) == 0)
         self.one_hot_process = True
+        self.reverse_process = False
 
     def _prepare_dataset(self):
         """Prepare (text standardize and full fill) dataset up"""
@@ -77,13 +78,10 @@ class DataGenerator():
             self.train_index += self.batch_size
 
             targets = self.dataset["train"]["gt"][index:until]
+            inputs = targets if self.noise_process else self.dataset["train"]["dt"][index:until]
 
-            if self.noise_process:
-                inputs = self.prepare_sequence(targets, eos=True, add_noise=True)
-            else:
-                inputs = self.dataset["train"]["dt"][index:until]
-                inputs = self.prepare_sequence(inputs, eos=True, add_noise=False)
-
+            inputs = self.prepare_sequence(inputs, eos=True, add_noise=self.noise_process,
+                                           reverse=self.reverse_process)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -103,7 +101,7 @@ class DataGenerator():
             inputs = self.dataset["valid"]["dt"][index:until]
             targets = self.dataset["valid"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, eos=True)
+            inputs = self.prepare_sequence(inputs, eos=True, reverse=self.reverse_process)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -122,7 +120,7 @@ class DataGenerator():
 
             inputs = self.dataset["test"]["dt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, eos=True)
+            inputs = self.prepare_sequence(inputs, eos=True, reverse=self.reverse_process)
 
             yield inputs
 

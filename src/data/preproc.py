@@ -6,6 +6,24 @@ import string
 import unicodedata
 import numpy as np
 
+"""
+DeepSpell based text cleaning process.
+    Tal Weiss.
+    Deep Spelling.
+    Medium: https://machinelearnings.co/deep-spelling-9ffef96a24f6#.2c9pu8nlm
+    Github: https://github.com/MajorTal/DeepSpell
+"""
+NORMALIZE_WHITESPACE_REGEX = re.compile(r'[^\S\n]+', re.UNICODE)
+RE_DASH_FILTER = re.compile(r'[\-\˗\֊\‐\‑\‒\–\—\⁻\₋\−\﹣\－]', re.UNICODE)
+RE_APOSTROPHE_FILTER = re.compile(r'&#39;|[ʼ՚＇‘’‛❛❜ߴߵ`‵´ˊˋ{}{}{}{}{}{}{}{}{}]'.format(chr(768), chr(769),
+                                                                                      chr(832), chr(833),
+                                                                                      chr(2387), chr(5151),
+                                                                                      chr(5152), chr(65344),
+                                                                                      chr(8242)), re.UNICODE)
+RE_LEFT_PARENTH_FILTER = re.compile(r'[\(\[\{\⁽\₍\❨\❪\﹙\（]', re.UNICODE)
+RE_RIGHT_PARENTH_FILTER = re.compile(r'[\)\]\}\⁾\₎\❩\❫\﹚\）]', re.UNICODE)
+RE_BASIC_CLEANER = re.compile(r'[^\w\s{}]'.format(re.escape(string.punctuation)), re.UNICODE)
+
 
 def text_standardize(txt):
     """Organize/add spaces around punctuation marks"""
@@ -14,28 +32,15 @@ def text_standardize(txt):
         return ""
 
     txt = html.unescape(txt).replace("\\n", "").replace("\\t", "")
+
+    txt = RE_DASH_FILTER.sub("-", txt)
+    txt = RE_APOSTROPHE_FILTER.sub("'", txt)
+    txt = RE_LEFT_PARENTH_FILTER.sub("(", txt)
+    txt = RE_RIGHT_PARENTH_FILTER.sub(")", txt)
+    txt = RE_BASIC_CLEANER.sub("", txt)
+
     txt = txt.translate(str.maketrans({c: f" {c} " for c in string.punctuation}))
-    txt = " " + " ".join(txt.split()) + " "
-
-    # replace contractions and simple quotes (preserve order)
-    keys = [["«", ""], ["»", ""], ["�", ""],
-            ["”", " \" "], ["“", " \" "],
-            [" ' ' ", " ' "], [". '", ".  '"],
-            ["' s ", "'s "], [" 's", "'s"],
-            ["' d ", "'d "], [" 'd", "'d"],
-            ["' m ", "'m "], [" 'm", "'m"],
-            ["' ll ", "'ll "], [" 'll", "'ll"],
-            ["' ve ", "'ve "], [" 've", "'ve"],
-            ["' re ", "'re "], [" 're", "'re"],
-            ["n ' t ", "n't "], [" n't", "n't"],
-            ["o ' c ", "o'c "], [" o'c", "o'c"],
-            [" ' ", " "], ["''", "'"],
-            [" '", ""], ["' ", ""]]
-
-    for i in range(len(keys)):
-        txt = txt.replace(keys[i][0], keys[i][1])
-
-    txt = " ".join(txt.strip("'").split())
+    txt = NORMALIZE_WHITESPACE_REGEX.sub(" ", txt.strip())
 
     return txt
 
@@ -82,20 +87,6 @@ def add_noise(sentences, max_text_length, amount_noise=0.8):
             prob = 0.1 if len(x) <= 5 else amount_noise
 
             if np.random.rand() <= prob:
-                # Delete characters...
-                delete_rand = np.random.rand()
-                sentence = x
-
-                if delete_rand <= 0.8:
-                    # by repeat characters
-                    x = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
-
-                if sentence == x:
-                    # by random characters
-                    random_index = np.random.randint(len(x))
-                    x = x[:random_index] + x[random_index + 1:]
-
-            if np.random.rand() <= prob:
                 # Replace characters...
                 add_rand = np.random.rand()
                 sentence = x
@@ -110,6 +101,20 @@ def add_noise(sentences, max_text_length, amount_noise=0.8):
                     # by random characters
                     random_index = np.random.randint(len(x))
                     x = x[:random_index] + np.random.choice(chars) + x[random_index + 1:]
+
+            if np.random.rand() <= prob:
+                # Delete characters...
+                delete_rand = np.random.rand()
+                sentence = x
+
+                if delete_rand <= 0.8:
+                    # by repeat characters
+                    x = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
+
+                if sentence == x:
+                    # by random characters
+                    random_index = np.random.randint(len(x))
+                    x = x[:random_index] + x[random_index + 1:]
 
             if np.random.rand() <= prob:
                 # Add a random character
