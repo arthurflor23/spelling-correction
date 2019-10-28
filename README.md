@@ -23,7 +23,9 @@ f. [IAM](http://www.fki.inf.unibe.ch/databases/iam-handwriting-database)
 
 g. [Rimes](http://www.a2ialab.com/doku.php?id=rimes_database:start)
 
-h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-database/washington-database)
+h. [Saint Gall](http://www.fki.inf.unibe.ch/databases/iam-historical-document-database/saint-gall-database)
+
+i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-database/washington-database)
 
 ## Requirements
 
@@ -34,7 +36,7 @@ h. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 ## Command line arguments
 
-* `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, washington)
+* `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, saintgall, washington)
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
 * `--mode`: method to be used:
 

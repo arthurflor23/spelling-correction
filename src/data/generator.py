@@ -1,18 +1,18 @@
 """Generator function to supply train/test with text data"""
 
 import numpy as np
-from data import preproc as pp, m2
+from data import preproc as pp, reader
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, m2_src, batch_size, charset, max_text_length=128):
+    def __init__(self, source, batch_size, charset, max_text_length=128):
         self.tokenizer = Tokenizer(charset, max_text_length)
         self.batch_size = batch_size
 
-        self.dataset = m2.read_dataset(m2_src)
+        self.dataset = reader.read_from_txt(source)
         self._prepare_dataset()
 
         self.total_train = len(self.dataset["train"]["gt"])
