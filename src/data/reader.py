@@ -4,14 +4,17 @@ import os
 import html
 import numpy as np
 import xml.etree.ElementTree as ET
+
+from glob import glob
 from data import preproc as pp
 
 
 class Dataset():
 
-    def __init__(self, source, names):
+    def __init__(self, source, names, min_text_len=5):
         self.source = source
         self.names = names
+        self.min_text_len = min_text_len
         self.partitions = {"train": [], "valid": [], "test": []}
 
     def read_lines(self, maxlen):
@@ -21,9 +24,9 @@ class Dataset():
             lines = getattr(self, f"_{dataset}")()
             sub_partition = int(len(lines) * 0.1)
 
-            self.partitions["train"] += lines[:]
-            self.partitions["valid"] += lines[:sub_partition]
-            self.partitions["test"] += lines[-sub_partition // 2:]
+            self.partitions["train"].extend(lines[:])
+            self.partitions["valid"].extend(lines[:sub_partition])
+            self.partitions["test"].extend(lines[-sub_partition // 2:])
 
         for p in ["train", "valid", "test"]:
             self.partitions[p] = [y for x in self.partitions[p] for y in pp.split_by_max_length(x, maxlen)]
@@ -39,27 +42,33 @@ class Dataset():
     def _bea2019(self):
         """BEA2019 dataset reader"""
 
-        source = os.path.join(self.source, "bea2019", "m2")
-        m2_list = next(os.walk(source))[2]
+        basedir = os.path.join(self.source, "bea2019", "m2")
+        m2_list = next(os.walk(basedir))[2]
         lines = []
 
         for m2_file in m2_list:
-            lines += read_from_m2(os.path.join(source, m2_file))
+            lines.extend(read_from_m2(os.path.join(basedir, m2_file)))
 
         return list(set(lines))
 
     def _bentham(self):
         """Bentham dataset reader"""
 
-        source = os.path.join(self.source, "bentham", "BenthamDatasetR0-GT", "Transcriptions")
-        files = os.listdir(source)
-        lines = []
+        basedir = os.path.join(self.source, "bentham", "BenthamDatasetR0-GT")
+        transdir = os.path.join(basedir, "Transcriptions")
+        files = os.listdir(transdir)
+
+        ptdir = os.path.join(basedir, "Partitions")
+        lines, images = [], []
+
+        for x in ["TrainLines.lst", "ValidationLines.lst", "TestLines.lst"]:
+            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:
-            text = open(os.path.join(source, item)).read().splitlines()[0]
+            text = open(os.path.join(transdir, item)).read().splitlines()[0]
             text = html.unescape(text).replace("<gap/>", "")
 
-            if len(text) > 5:
+            if len(text) > self.min_text_len and os.path.splitext(item)[0] in images:
                 lines.append(text)
 
         return list(set(lines))
@@ -84,21 +93,19 @@ class Dataset():
         In this project, the google dataset only get 1M data from English and French partitions.
         """
 
-        source = os.path.join(self.source, "google")
-        m2_list = next(os.walk(source))[2]
+        basedir = os.path.join(self.source, "google")
+        m2_list = next(os.walk(basedir))[2]
         lines_en, lines_fr = [], []
 
         for m2_file in m2_list:
             if "2010" in m2_file and ".en" in m2_file:
-                with open(os.path.join(source, m2_file)) as f:
-                    for line in f:
-                        lines_en.append(line)
+                with open(os.path.join(basedir, m2_file)) as f:
+                    lines_en = [line for line in f if len(line) > self.min_text_len]
                     lines_en = list(set(lines_en))[::-1]
 
             elif "2009" in m2_file and ".fr" in m2_file:
-                with open(os.path.join(source, m2_file)) as f:
-                    for line in f:
-                        lines_fr.append(line)
+                with open(os.path.join(basedir, m2_file)) as f:
+                    lines_fr = [line for line in f if len(line) > self.min_text_len]
                     lines_fr = list(set(lines_fr))[::-1]
 
         # English and french will be 7% samples (around 1 M).
@@ -116,9 +123,14 @@ class Dataset():
     def _iam(self):
         """IAM dataset reader"""
 
-        source = os.path.join(self.source, "iam", "ascii", "lines.txt")
-        files = open(source).read().splitlines()
-        lines = []
+        basedir = os.path.join(self.source, "iam")
+        files = open(os.path.join(basedir, "ascii", "lines.txt")).read().splitlines()
+
+        ptdir = os.path.join(basedir, "largeWriterIndependentTextLineRecognitionTask")
+        lines, images = [], []
+
+        for x in ["trainset.txt", "validationset1.txt", "validationset2.txt", "testset.txt"]:
+            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:
             if (not item or item[0] == "#"):
@@ -126,8 +138,11 @@ class Dataset():
 
             splitted = item.split()
 
-            if splitted[1] == "ok":
-                lines.append(" ".join(splitted[8::]).replace("|", " "))
+            if splitted[1] == "ok" and splitted[0] in images:
+                text = " ".join(splitted[8::]).replace("|", " ")
+
+                if len(text) > self.min_text_len:
+                    lines.append(text)
 
         return list(set(lines))
 
@@ -142,39 +157,58 @@ class Dataset():
                 for _, line_tag in enumerate(page_tag.iter("Line")):
                     text = " ".join(html.unescape(line_tag.attrib["Value"]).split())
 
-                    if len(text) > 5:
+                    if len(text) > self.min_text_len:
                         lines.append(text)
 
             return lines
 
-        source = os.path.join(self.source, "rimes")
+        basedir = os.path.join(self.source, "rimes")
         lines = []
 
         for f in ["training_2011.xml", "eval_2011_annotated.xml"]:
-            lines += read_from_xml(os.path.join(source, f))
+            lines.extend(read_from_xml(os.path.join(basedir, f)))
 
         return list(set(lines))
 
     def _saintgall(self):
         """Saint Gall dataset reader"""
 
-        source = os.path.join(self.source, "saintgall", "ground_truth", "transcription.txt")
-        files = open(source).read().splitlines()
-        lines = []
+        basedir = os.path.join(self.source, "saintgall")
+        files = open(os.path.join(basedir, "ground_truth", "transcription.txt")).read().splitlines()
+
+        ptdir = os.path.join(basedir, "sets")
+        lines, pages, images = [], [], []
+
+        for x in ["train.txt", "valid.txt", "test.txt"]:
+            pages.extend(open(os.path.join(ptdir, x)).read().splitlines())
+
+        for x in pages:
+            glob_filter = os.path.join(basedir, "data", "line_images_normalized", f"{x}*")
+            files_list = [x for x in glob(glob_filter, recursive=True)]
+
+            for y in files_list:
+                images.append(os.path.splitext(os.path.basename(y))[0])
 
         for item in files:
             splitted = item.split()
             splitted[1] = splitted[1].replace("-", "").replace("|", " ")
-            lines.append(splitted[1])
+
+            if len(splitted[1]) > self.min_text_len and splitted[0] in images:
+                lines.append(splitted[1])
 
         return list(set(lines))
 
     def _washington(self):
         """Washington dataset reader"""
 
-        source = os.path.join(self.source, "washington", "ground_truth", "transcription.txt")
-        files = open(source).read().splitlines()
-        lines = []
+        basedir = os.path.join(self.source, "washington")
+        files = open(os.path.join(basedir, "ground_truth", "transcription.txt")).read().splitlines()
+
+        ptdir = os.path.join(basedir, "sets", "cv1")
+        lines, images = [], []
+
+        for x in ["train.txt", "valid.txt", "test.txt"]:
+            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:
             splitted = item.split()
@@ -184,7 +218,9 @@ class Dataset():
             splitted[1] = splitted[1].replace("s_sq", ";").replace("s_et", "V")
             splitted[1] = splitted[1].replace("s_bl", "(").replace("s_br", ")")
             splitted[1] = splitted[1].replace("s_qt", "'").replace("s_", "")
-            lines.append(splitted[1])
+
+            if len(splitted[1]) > self.min_text_len and splitted[0] in images:
+                lines.append(splitted[1])
 
         return list(set(lines))
 

@@ -30,8 +30,10 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 ## Requirements
 
 * Python 3.x
+* Editdistance
+* Ngram
+* Pyspellchecker
 * Symspellpy
-* editdistance
 * TensorFlow 2.0
 
 ## Command line arguments
@@ -40,9 +42,9 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
 * `--mode`: method to be used:
 
-  `symspell`:
+  `srilm`, `similarity`, `norvig`, `symspell`:
 
-    * `--N`: max edit distance (2 by default)
+    * `--N`: N gram or max edit distance (2 by default)
 
   `luong`, `bahdanau`, `transformer`:
 

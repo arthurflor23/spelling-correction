@@ -4,8 +4,8 @@ Provides options via the command line to perform project tasks.
 * `--transform`: transform dataset to the corpus, sentences (train and test) files
 * `--mode`: method to be used:
 
-    `symspell`:
-        * `--N`: max edit distance (2 by default)
+    `srilm`, `similarity`, `norvig`, `symspell`:
+        * `--N`: N gram or max edit distance (2 by default)
 
     `luong`, `bahdanau`, `transformer`:
         * `--train`: train the model
@@ -18,12 +18,12 @@ import os
 import time
 import argparse
 
-from data import preproc as pp, evaluation
+from data import preproc as pp, evaluation as ev
 from data.generator import DataGenerator
 from data.reader import Dataset
 
 from tool.seq2seq import Seq2SeqAttention
-from tool.symspell import Symspell
+from tool.statistical import LanguageModel
 from tool.transformer import Transformer
 
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         valid_noised = pp.add_noise(dataset.partitions["valid"], max_text_length)
         test_noised = pp.add_noise(dataset.partitions["test"], max_text_length)
 
-        current_metric = evaluation.ocr_metrics(test_noised, dataset.partitions["test"])
+        current_metric = ev.ocr_metrics(test_noised, dataset.partitions["test"])
 
         info = "\n".join([
             f"####",
@@ -102,38 +102,43 @@ if __name__ == "__main__":
                               charset=(charset_base + charset_special),
                               max_text_length=max_text_length)
 
-        if args.mode == "symspell":
-            sspell = Symspell(output_path, args.N)
-            train_corpus = sspell.load(corpus=dtgen.dataset["train"]["gt"])
+        if args.mode in ["srilm", "similarity", "norvig", "symspell"]:
 
-            with open(os.path.join(output_path, "train.txt"), "w") as lg:
-                print(train_corpus)
-                lg.write(train_corpus)
+            lm = LanguageModel(mode=args.mode, source=source, N=args.N)
 
-            start_time = time.time()
-            predicts = sspell.autocorrect(batch=dtgen.dataset["test"]["dt"])
-            total_time = time.time() - start_time
+            if args.train:
+                corpus = lm.create_corpus(corpus=dtgen.dataset["train"]["gt"])
 
-            old_metric = evaluation.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
-            new_metric = evaluation.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
+                with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
+                    lg.write(corpus)
 
-            pred_corpus, eval_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time,
-                                                         plus=f"Max Edit distance:\t{args.N}\n")
+            elif args.test:
+                lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
-            with open(os.path.join(output_path, "predict.txt"), "w") as lg:
-                lg.write("\n".join(pred_corpus))
-                print("\n".join(pred_corpus[:30]))
+                start_time = time.time()
+                predicts = lm.autocorrect(sentences=dtgen.dataset["test"]["dt"])
+                total_time = time.time() - start_time
 
-            with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
-                lg.write(eval_corpus)
-                print(eval_corpus)
+                old_metric = ev.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
+                new_metric = ev.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
 
-        else:
+                p_corpus, e_corpus = ev.report(dtgen, predicts, [old_metric, new_metric], total_time, plus=f"N: {args.N}\n")
+
+                with open(os.path.join(output_path, "predict.txt"), "w") as lg:
+                    lg.write("\n".join(p_corpus))
+                    print("\n".join(p_corpus[:30]))
+
+                with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                    lg.write(e_corpus)
+                    print(e_corpus)
+
+        elif args.mode in ["luong", "bahdanau", "transformer"]:
+
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(num_layers=2, units=2048, d_model=256, num_heads=2, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Transformer(num_layers=4, units=4096, d_model=256, num_heads=8, dropout=0.1, tokenizer=dtgen.tokenizer)
             else:
-                model = Seq2SeqAttention(arch=args.mode, units=512, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Seq2SeqAttention(mode=args.mode, units=1024, dropout=0.1, tokenizer=dtgen.tokenizer)
 
             # set parameter `learning_rate` to customize or get default value of the model
             model.compile()
@@ -166,7 +171,7 @@ if __name__ == "__main__":
                 total_item = (dtgen.total_train + dtgen.total_valid)
                 best_epoch_index = val_accuracy.index(max(val_accuracy))
 
-                train_corpus = "\n".join([
+                t_corpus = "\n".join([
                     f"Total train sentences:      {dtgen.total_train}",
                     f"Total validation sentences: {dtgen.total_valid}",
                     f"Batch:                      {dtgen.batch_size}\n",
@@ -182,8 +187,8 @@ if __name__ == "__main__":
                 ])
 
                 with open(os.path.join(output_path, "train.txt"), "w") as lg:
-                    lg.write(train_corpus)
-                    print(train_corpus)
+                    lg.write(t_corpus)
+                    print(t_corpus)
 
             elif args.test:
                 start_time = time.time()
@@ -193,15 +198,15 @@ if __name__ == "__main__":
                                                    verbose=1)
                 total_time = time.time() - start_time
 
-                old_metric = evaluation.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
-                new_metric = evaluation.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
+                old_metric = ev.ocr_metrics(dtgen.dataset["test"]["dt"], dtgen.dataset["test"]["gt"])
+                new_metric = ev.ocr_metrics(predicts, dtgen.dataset["test"]["gt"])
 
-                pred_corpus, eval_corpus = evaluation.report(dtgen, predicts, [old_metric, new_metric], total_time)
+                p_corpus, e_corpus = ev.report(dtgen, predicts, [old_metric, new_metric], total_time)
 
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
-                    lg.write("\n".join(pred_corpus))
-                    print("\n".join(pred_corpus[:30]))
+                    lg.write("\n".join(p_corpus))
+                    print("\n".join(p_corpus[:30]))
 
                 with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
-                    lg.write(eval_corpus)
-                    print(eval_corpus)
+                    lg.write(e_corpus)
+                    print(e_corpus)

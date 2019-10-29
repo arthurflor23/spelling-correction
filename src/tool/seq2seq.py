@@ -33,8 +33,8 @@ class Seq2SeqAttention():
     This class implement Luong and Bahdanau architectures with layer normalization approach.
     """
 
-    def __init__(self, arch, units, dropout, tokenizer):
-        self.arch = arch
+    def __init__(self, mode, units, dropout, tokenizer):
+        self.mode = mode
         self.units = units
         self.dropout = dropout
         self.tokenizer = tokenizer
@@ -121,11 +121,8 @@ class Seq2SeqAttention():
         if learning_rate is None:
             learning_rate = 0.001
 
-        if self.arch == "luong":
-            self._luong_compile(learning_rate)
-
-        elif self.arch == "bahdanau":
-            self._bahdanau_compile(learning_rate)
+        _compile = getattr(self, f"_{self.mode}_compile")
+        _compile(learning_rate)
 
     def _luong_compile(self, learning_rate):
         """
@@ -163,7 +160,8 @@ class Seq2SeqAttention():
 
         # Dropout and Normalization layer
         normalization = LayerNormalization(name="normalization")
-        decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
+        decoder_concat_input = normalization(decoder_concat_input)
+        # decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -199,7 +197,8 @@ class Seq2SeqAttention():
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Dropout and Normalization layer
-        decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
+        decoder_inf_concat = normalization(decoder_inf_concat)
+        # decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
@@ -243,7 +242,8 @@ class Seq2SeqAttention():
 
         # Dropout and Normalization layer
         normalization = LayerNormalization(name="normalization")
-        decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
+        decoder_concat_input = normalization(decoder_concat_input)
+        # decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -276,7 +276,8 @@ class Seq2SeqAttention():
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Dropout and Normalization layer
-        decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
+        decoder_inf_concat = normalization(decoder_inf_concat)
+        # decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
