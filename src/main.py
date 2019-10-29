@@ -1,11 +1,13 @@
 """
 Provides options via the command line to perform project tasks.
 * `--dataset`: dataset name (bea2019, bentham, conll13, conll14, google, iam, rimes, saintgall, washington)
-* `--transform`: transform dataset to the corpus, sentences (train and test) files
+* `--transform`: transform dataset to the standard project file
 * `--mode`: method to be used:
 
     `srilm`, `similarity`, `norvig`, `symspell`:
         * `--N`: N gram or max edit distance (2 by default)
+        * `--train`: create corpus files
+        * `--test`: predict and evaluate sentences
 
     `luong`, `bahdanau`, `transformer`:
         * `--train`: train the model

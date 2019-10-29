@@ -21,7 +21,7 @@ from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Concatenate, Attention, AdditiveAttention
 from tensorflow.keras.layers import Input, Bidirectional, LSTM, GRU
-from tensorflow.keras.layers import TimeDistributed, Dense, Dropout, LayerNormalization
+from tensorflow.keras.layers import TimeDistributed, Dense, LayerNormalization
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import Sequence, GeneratorEnqueuer, OrderedEnqueuer, Progbar
@@ -159,9 +159,7 @@ class Seq2SeqAttention():
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
         # Dropout and Normalization layer
-        normalization = LayerNormalization(name="normalization")
-        decoder_concat_input = normalization(decoder_concat_input)
-        # decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
+        decoder_concat_input = LayerNormalization()(decoder_concat_input)
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -197,8 +195,7 @@ class Seq2SeqAttention():
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Dropout and Normalization layer
-        decoder_inf_concat = normalization(decoder_inf_concat)
-        # decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
+        decoder_inf_concat = LayerNormalization()(decoder_inf_concat)
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
@@ -241,9 +238,7 @@ class Seq2SeqAttention():
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
         # Dropout and Normalization layer
-        normalization = LayerNormalization(name="normalization")
-        decoder_concat_input = normalization(decoder_concat_input)
-        # decoder_concat_input = normalization(Dropout(rate=self.dropout)(decoder_concat_input))
+        decoder_concat_input = LayerNormalization()(decoder_concat_input)
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -276,8 +271,7 @@ class Seq2SeqAttention():
         decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Dropout and Normalization layer
-        decoder_inf_concat = normalization(decoder_inf_concat)
-        # decoder_inf_concat = normalization(Dropout(rate=self.dropout)(decoder_inf_concat))
+        decoder_inf_concat = LayerNormalization()(decoder_inf_concat)
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
