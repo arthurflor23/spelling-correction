@@ -20,6 +20,7 @@ RE_APOSTROPHE_FILTER = re.compile(r'&#39;|[ʼ՚＇‘’‛❛❜ߴߵ`‵´ˊˋ{
                                                                                       chr(2387), chr(5151),
                                                                                       chr(5152), chr(65344),
                                                                                       chr(8242)), re.UNICODE)
+RE_RESERVED_CHAR_FILTER = re.compile(r'[·¶«œ»]', re.UNICODE)
 RE_LEFT_PARENTH_FILTER = re.compile(r'[\(\[\{\⁽\₍\❨\❪\﹙\（]', re.UNICODE)
 RE_RIGHT_PARENTH_FILTER = re.compile(r'[\)\]\}\⁾\₎\❩\❫\﹚\）]', re.UNICODE)
 RE_BASIC_CLEANER = re.compile(r'[^\w\s{}]'.format(re.escape(string.punctuation)), re.UNICODE)
@@ -33,6 +34,7 @@ def text_standardize(txt):
 
     txt = html.unescape(txt).replace("\\n", "").replace("\\t", "")
 
+    txt = RE_RESERVED_CHAR_FILTER.sub("", txt)
     txt = RE_DASH_FILTER.sub("-", txt)
     txt = RE_APOSTROPHE_FILTER.sub("'", txt)
     txt = RE_LEFT_PARENTH_FILTER.sub("(", txt)
@@ -74,7 +76,7 @@ def split_by_max_length(sentence, max_text_length=128):
     return new_n_sentences
 
 
-def add_noise(sentences, max_text_length, amount_noise=0.8):
+def add_noise(sentences, max_text_length, amount_noise=0.5):
     """Generate some artificial spelling mistakes (or not) in the sentences"""
 
     chars = list(" " + string.ascii_letters + string.digits)
@@ -83,31 +85,27 @@ def add_noise(sentences, max_text_length, amount_noise=0.8):
     assert(0.0 <= amount_noise <= 1.0)
 
     for x in sentences:
-        if len(x) > 2:
+        if len(x) >= 3:
             prob = 0.1 if len(x) <= 5 else amount_noise
 
             if np.random.rand() <= prob:
                 # Replace characters...
-                add_rand = np.random.rand()
                 sentence = x
 
-                # if add_rand <= 0.1:
-                if add_rand <= 0.2:
+                if np.random.rand() <= 0.5:
                     # by accentuation
                     x = unicodedata.normalize("NFKD", x).encode("ASCII", "ignore").decode("ASCII")
 
-                # if sentence == x and add_rand <= 0.2:
-                if sentence == x and add_rand > 0.2:
+                if sentence == x:
                     # by random characters
                     random_index = np.random.randint(len(x))
                     x = x[:random_index] + np.random.choice(chars) + x[random_index + 1:]
 
             if np.random.rand() <= prob:
                 # Delete characters...
-                delete_rand = np.random.rand()
                 sentence = x
 
-                if delete_rand <= 0.8:
+                if np.random.rand() <= 0.5:
                     # by repeat characters
                     x = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', x)
 

@@ -129,7 +129,7 @@ class Tokenizer():
     """Manager tokens functions and charset/dictionary properties"""
 
     def __init__(self, chars, max_text_length=128):
-        self.PAD_TK, self.UNK_TK, self.SOS_TK, self.EOS_TK = "¶", "¥", "«", "»"
+        self.PAD_TK, self.UNK_TK, self.SOS_TK, self.EOS_TK = "·", "¶", "«", "»"
         self.chars = (self.PAD_TK + self.UNK_TK + chars + self.SOS_TK + self.EOS_TK)
 
         self.PAD = self.chars.find(self.PAD_TK)

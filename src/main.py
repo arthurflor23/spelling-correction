@@ -4,7 +4,7 @@ Provides options via the command line to perform project tasks.
 * `--transform`: transform dataset to the standard project file
 * `--mode`: method to be used:
 
-    `srilm`, `similarity`, `norvig`, `symspell`:
+    `similarity`, `norvig`, `symspell`:
         * `--N`: N gram or max edit distance (2 by default)
         * `--train`: create corpus files
         * `--test`: predict and evaluate sentences
@@ -60,8 +60,8 @@ if __name__ == "__main__":
         else:
             names = [args.dataset]
 
-        dataset = Dataset(raw_path, names)
-        dataset.read_lines(max_text_length)
+        dataset = Dataset(source=raw_path, names=names)
+        dataset.read_lines(maxlen=max_text_length)
 
         valid_noised = pp.add_noise(dataset.partitions["valid"], max_text_length)
         test_noised = pp.add_noise(dataset.partitions["test"], max_text_length)
@@ -104,12 +104,11 @@ if __name__ == "__main__":
                               charset=(charset_base + charset_special),
                               max_text_length=max_text_length)
 
-        if args.mode in ["srilm", "similarity", "norvig", "symspell"]:
-
+        if args.mode in ["kaldi", "similarity", "norvig", "symspell"]:
             lm = LanguageModel(mode=args.mode, source=source, N=args.N)
 
             if args.train:
-                corpus = lm.create_corpus(corpus=dtgen.dataset["train"]["gt"])
+                corpus = lm.create_corpus(sentences=dtgen.dataset["train"]["gt"])
 
                 with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
                     lg.write(corpus)
@@ -134,8 +133,7 @@ if __name__ == "__main__":
                     lg.write(e_corpus)
                     print(e_corpus)
 
-        elif args.mode in ["luong", "bahdanau", "transformer"]:
-
+        else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
                 model = Transformer(num_layers=4, units=4096, d_model=256, num_heads=8, dropout=0.1, tokenizer=dtgen.tokenizer)

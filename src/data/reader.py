@@ -1,7 +1,9 @@
 """Dataset reader and process"""
 
 import os
+import re
 import html
+import string
 import numpy as np
 import xml.etree.ElementTree as ET
 
@@ -18,6 +20,8 @@ class Dataset():
         self.partitions = {"train": [], "valid": [], "test": []}
 
     def read_lines(self, maxlen):
+        """Read sentences from dataset and preprocess"""
+
         for dataset in self.names:
             print(f"The {dataset} dataset will be transformed...")
 
@@ -31,13 +35,21 @@ class Dataset():
         for p in ["train", "valid", "test"]:
             self.partitions[p] = [y for x in self.partitions[p] for y in pp.split_by_max_length(x, maxlen)]
             self.partitions[p] = [pp.text_standardize(x) for x in self.partitions[p]]
-            self.partitions[p] = [x for x in self.partitions[p] if len(x) > 2]
+            self.partitions[p] = [x for x in self.partitions[p] if self._verify_text(x)]
             np.random.shuffle(self.partitions[p])
 
         self.total_train = len(self.partitions["train"])
         self.total_valid = len(self.partitions["valid"])
         self.total_test = len(self.partitions["test"])
         self.total = self.total_train + self.total_valid + self.total_test
+
+    def _verify_text(self, text):
+        """Check if text has more characters instead of punctuation marks"""
+
+        x = text.translate(str.maketrans("", "", string.punctuation))
+        x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
+
+        return len(x) >= 3 and len(x) >= len(text) * 0.5
 
     def _bea2019(self):
         """BEA2019 dataset reader"""

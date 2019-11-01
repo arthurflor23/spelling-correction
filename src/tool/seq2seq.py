@@ -232,7 +232,7 @@ class Seq2SeqAttention():
         decoder_out, decoder_state = decoder_gru(decoder_inputs, initial_state=encoder_states)
 
         # Attention layer
-        attn_layer = AdditiveAttention(name="attention_layer")
+        attn_layer = Attention(name="attention_layer")
 
         attn_out = attn_layer([decoder_out, encoder_out])
         decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])

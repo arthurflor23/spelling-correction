@@ -3,13 +3,13 @@ Language Model class.
 Create and read the corpus with the language model file.
 
 Statistical techniques for text correction:
-    * N-gram with SRILM.
     * N-gram with similarity.
     * Peter Norvig's method.
     * Symspell method.
 """
 
 import os
+import re
 import string
 
 from ngram import NGram
@@ -24,42 +24,44 @@ class LanguageModel():
         self.source = source
         self.N = N
 
-    def create_corpus(self, corpus):
-        """Create corpus file / frequency list"""
+    def create_corpus(self, sentences):
+        """Create corpus file"""
 
-        matches = " ".join(corpus).translate(str.maketrans("", "", string.punctuation))
-        matches = " ".join(matches.split())
+        matches = " ¶ ".join(sentences).translate(str.maketrans("", "", string.punctuation))
+        matches = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", matches.strip())
+        matches = "\n".join(matches.strip().split(" ¶ "))
 
-        return matches
+        return matches.lower()
 
     def read_corpus(self, corpus_path):
-        """Read corpus file / frequency list to the autocorrect tool"""
+        """Read corpus file to the autocorrect tool"""
 
         self.corpus_path = corpus_path
         self.dictionary_path = os.path.join(os.path.dirname(corpus_path), "dictionary.txt")
+        self.corpus = " ".join(open(corpus_path).read().splitlines()).lower()
 
-        self.corpus = " ".join(open(corpus_path).read().splitlines())
-
-    def _srilm(self, sentences):
+    def _kaldi(self, sentences):
         """
-        The SRI Language Modeling Toolkit.
+        Kaldi Speech Recognition Toolkit with SRI Language Modeling Toolkit.
 
-        SRILM is a toolkit for building and applying statistical language models (LMs),
-        primarily for use in speech recognition, statistical tagging and segmentation,
-        and machine translation.
-
-        **Important**
+        **Important Note**
         You'll need compile SRILM and KALDI code by yourself and put the project folders in:
-            ``output/<DATASET>/srilm/<PROJECT_FOLDERS>``
+            ``src/srilm/<PROJECT_FOLDERS>``
 
-        Reference:
+        References:
+            D. Povey, A. Ghoshal, G. Boulianne, L. Burget, O. Glembek, N. Goel, M. Hannemann,
+            P. Motlicek, Y. Qian, P. Schwarz, J. Silovsky, G. Stem- mer and K. Vesely.
+            The Kaldi speech recognition toolkit, 2011.
+            Workshop on Automatic Speech Recognition and Understanding.
+            URL: http://github.com/kaldi-asr/kaldi
+
             Andreas Stolcke.
             SRILM - An Extensible Language Modeling Toolkit, 2002.
             Proceedings of the 7th International Conference on Spoken Language Processing (ICSLP).
             URL: http://www.speech.sri.com/projects/srilm/
         """
 
-        print("srilm")
+        print("kaldi")
 
     def _similarity(self, sentences):
         """

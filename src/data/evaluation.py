@@ -29,7 +29,7 @@ def ocr_metrics(predict, ground_truth):
 def report(dtgen, new_dt, metrics, total_time, plus=""):
     """Calculate and organize metrics and predicts informations"""
 
-    eval_corpus = "\n".join([
+    e_corpus = "\n".join([
         f"Total test sentences: {dtgen.total_test}",
         f"{plus}",
         f"Total time:           {total_time:.8f} sec",
@@ -42,10 +42,10 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
         f"Word Error Rate:      {metrics[1][1]:.8f}"
     ])
 
-    pred_corpus = []
+    p_corpus = []
     for i in range(dtgen.total_test):
-        pred_corpus.append(f"GT {dtgen.dataset['test']['gt'][i]}")
-        pred_corpus.append(f"DT {dtgen.dataset['test']['dt'][i]}")
-        pred_corpus.append(f"PD {new_dt[i]}\n")
+        p_corpus.append(f"GT {dtgen.dataset['test']['gt'][i]}")
+        p_corpus.append(f"DT {dtgen.dataset['test']['dt'][i]}")
+        p_corpus.append(f"PD {new_dt[i]}\n")
 
-    return (pred_corpus, eval_corpus)
+    return (p_corpus, e_corpus)
