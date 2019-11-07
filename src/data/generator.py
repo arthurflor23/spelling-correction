@@ -27,7 +27,6 @@ class DataGenerator():
 
         self.noise_process = (len(max(self.dataset["train"]["dt"])) == 0)
         self.one_hot_process = True
-        self.reverse_process = False
 
     def _prepare_dataset(self):
         """Prepare (text standardize and full fill) dataset up"""
@@ -44,7 +43,7 @@ class DataGenerator():
                 self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
                 self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
 
-    def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False, reverse=False):
+    def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False):
         """Prepare inputs to feed the model"""
 
         n_sen = sentences.copy()
@@ -60,9 +59,6 @@ class DataGenerator():
 
             if self.one_hot_process:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
-
-            if reverse:
-                n_sen[i] = n_sen[i][::-1]
 
         return np.array(n_sen)
 
@@ -80,8 +76,7 @@ class DataGenerator():
             targets = self.dataset["train"]["gt"][index:until]
             inputs = targets if self.noise_process else self.dataset["train"]["dt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, eos=True, add_noise=self.noise_process,
-                                           reverse=self.reverse_process)
+            inputs = self.prepare_sequence(inputs, sos=True, eos=True, add_noise=self.noise_process)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -101,7 +96,7 @@ class DataGenerator():
             inputs = self.dataset["valid"]["dt"][index:until]
             targets = self.dataset["valid"]["gt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, eos=True, reverse=self.reverse_process)
+            inputs = self.prepare_sequence(inputs, sos=True, eos=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
@@ -120,7 +115,7 @@ class DataGenerator():
 
             inputs = self.dataset["test"]["dt"][index:until]
 
-            inputs = self.prepare_sequence(inputs, eos=True, reverse=self.reverse_process)
+            inputs = self.prepare_sequence(inputs, sos=True, eos=True)
 
             yield inputs
 
@@ -129,8 +124,8 @@ class Tokenizer():
     """Manager tokens functions and charset/dictionary properties"""
 
     def __init__(self, chars, max_text_length=128):
-        self.PAD_TK, self.UNK_TK, self.SOS_TK, self.EOS_TK = "·", "¶", "«", "»"
-        self.chars = (self.PAD_TK + self.UNK_TK + chars + self.SOS_TK + self.EOS_TK)
+        self.PAD_TK, self.UNK_TK, self.SOS_TK, self.EOS_TK = "¶", "¤", "«", "»"
+        self.chars = (self.PAD_TK + self.UNK_TK + self.SOS_TK + self.EOS_TK + chars)
 
         self.PAD = self.chars.find(self.PAD_TK)
         self.UNK = self.chars.find(self.UNK_TK)
@@ -178,4 +173,4 @@ class Tokenizer():
     def remove_tokens(self, text):
         """Remove tokens (PAD, SOS, EOS) from text"""
 
-        return text.replace(self.PAD_TK, "").replace(self.SOS_TK, "").replace(self.EOS_TK, "")
+        return text.split(self.EOS_TK)[0].replace(self.SOS_TK, "").replace(self.PAD_TK, "")

@@ -136,9 +136,9 @@ if __name__ == "__main__":
         else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(num_layers=4, units=4096, d_model=256, num_heads=8, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=256, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(mode=args.mode, units=1024, dropout=0.1, tokenizer=dtgen.tokenizer)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.1)
 
             # set parameter `learning_rate` to customize or get default value of the model
             model.compile()

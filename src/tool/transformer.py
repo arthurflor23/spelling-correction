@@ -45,14 +45,13 @@ class Transformer():
         Jupyter Notebook: https://colab.research.google.com/drive/1YhN8ZCZhrv18Hw0a_yIkuZ5tTh4EZDuG#scrollTo=ha0dNJogUPQN
     """
 
-    def __init__(self, num_layers, units, d_model, num_heads, dropout, tokenizer):
+    def __init__(self, tokenizer, num_layers, units, d_model, num_heads, dropout=0.0):
+        self.tokenizer = tokenizer
         self.num_layers = num_layers
         self.units = units
+        self.d_model = d_model
         self.num_heads = num_heads
         self.dropout = dropout
-
-        self.d_model = d_model
-        self.tokenizer = tokenizer
 
         global MAXLENGH
         MAXLENGH = self.tokenizer.maxlen
@@ -353,7 +352,6 @@ class Transformer():
     def infer(self, sentence):
         """
         Inference function from sentence input.
-        *Needs some optimization*
         """
 
         en_input = tf.expand_dims(sentence, axis=0)
