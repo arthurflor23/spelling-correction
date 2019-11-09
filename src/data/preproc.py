@@ -76,24 +76,23 @@ def split_by_max_length(sentence, max_text_length=128):
     return new_n_sentences
 
 
-def add_noise(x, max_text_length, amount_noise=0.5, level=6):
+def add_noise(x, max_text_length, max_prob=0.9, iterations=12):
     """Generate some artificial spelling mistakes (or not) in the sentences"""
 
-    assert(1 <= level)
-    assert(0.0 <= amount_noise <= 1.0)
+    assert(1 <= iterations)
+    assert(0.0 <= max_prob <= 1.0)
 
     chars = list(f"{string.ascii_letters}{string.digits} .")
     np.random.shuffle(chars)
     sentences = x.copy()
 
-    for _ in range(level):
-        for i, s in enumerate(sentences):
+    for i, s in enumerate(sentences):
+        if len(s) <= 2:
+            continue
 
-            if len(s) <= 2:
-                continue
+        prob = len(s) * (max_prob / max_text_length)
 
-            prob = 0.1 if len(s) <= 5 else amount_noise
-
+        for _ in range(iterations):
             if np.random.rand() <= prob:
                 # Replace characters...
                 sentence = s
@@ -130,6 +129,6 @@ def add_noise(x, max_text_length, amount_noise=0.5, level=6):
                 random_index = np.random.randint(len(s) - 1)
                 s = s[:random_index] + s[random_index + 1] + s[random_index] + s[random_index + 2:]
 
-            sentences[i] = text_standardize(s)
+        sentences[i] = text_standardize(s)
 
     return sentences

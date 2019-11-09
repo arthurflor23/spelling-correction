@@ -25,7 +25,7 @@ class DataGenerator():
 
         self.train_index, self.valid_index, self.test_index = 0, 0, 0
 
-        self.noise_process = (len(max(self.dataset["train"]["dt"])) == 0)
+        self.noise_process = len(max(self.dataset["train"]["dt"], default=[])) == 0
         self.one_hot_process = True
 
     def _prepare_dataset(self):

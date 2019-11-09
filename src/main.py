@@ -138,9 +138,9 @@ if __name__ == "__main__":
                 dtgen.one_hot_process = False
                 model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=256, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.1)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024)
 
-            # set parameter `learning_rate` to customize or get default value of the model
+            # set parameter `learning_rate` to customize or get default value
             model.compile()
 
             checkpoint = "checkpoint_weights.hdf5"
