@@ -24,19 +24,27 @@ class Dataset():
 
         for dataset in self.names:
             print(f"The {dataset} dataset will be transformed...")
-
             lines = getattr(self, f"_{dataset}")()
-            sub_partition = int(len(lines) * 0.1)
 
-            self.partitions["train"].extend(lines[:])
-            self.partitions["valid"].extend(lines[:sub_partition])
-            self.partitions["test"].extend(lines[-sub_partition // 2:])
+            # generate new sentences
+            lines = [y for x in lines for y in pp.generate_ngram_sentences(x)]
+            # split sentences by max length
+            lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
+            # standardize sentences
+            lines = [pp.text_standardize(x) for x in lines]
+            # ignore sentences with more punctuation percent
+            lines = [x for x in lines if self._verify_text(x)]
+            # remove duplicate sentences
+            lines = list(set([x for x in lines if self._verify_text(x)]))
+            # shuffle data one more time
+            np.random.shuffle(lines)
 
-        for p in ["train", "valid", "test"]:
-            self.partitions[p] = [y for x in self.partitions[p] for y in pp.split_by_max_length(x, maxlen)]
-            self.partitions[p] = [pp.text_standardize(x) for x in self.partitions[p]]
-            self.partitions[p] = [x for x in self.partitions[p] if self._verify_text(x)]
-            np.random.shuffle(self.partitions[p])
+            valid_partition = int(len(lines) * 0.1)
+            test_partition = int(len(lines) * 0.01)
+
+            self.partitions["train"] = lines[valid_partition:-test_partition]
+            self.partitions["valid"] = lines[:valid_partition]
+            self.partitions["test"] = lines[-test_partition:]
 
         self.total_train = len(self.partitions["train"])
         self.total_valid = len(self.partitions["valid"])
