@@ -44,9 +44,20 @@ class LanguageModel():
         """
         Kaldi Speech Recognition Toolkit with SRI Language Modeling Toolkit.
 
-        **Important Note**
-        You'll need compile SRILM and KALDI code by yourself and put the project folders in:
-            ``src/srilm/<PROJECT_FOLDERS>``
+        ** Important Note **
+        You'll need to do all by yourself:
+
+        1. Compile Kaldi with SRILM and OpenBLAS.
+        2. Create these files:
+            a. `chars.lst`
+            b. `conf_mats.ark`
+            c. `ground_truth.lst`
+            d. `ID_test.lst`
+            e. `ID_train.lst`
+        3. Put kaldi folder in the project `lib` folder: ``src/tool/lib/kaldi``
+        4. Put the files in the project `output` folder: ``output/<DATASET>/kaldi``
+
+        More information (maybe help) in ``src/tool/lib/kaldi-srilm-script.sh``.
 
         References:
             D. Povey, A. Ghoshal, G. Boulianne, L. Burget, O. Glembek, N. Goel, M. Hannemann,

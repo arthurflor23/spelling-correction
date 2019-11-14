@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="bahdanau")
     parser.add_argument("--N", type=int, default=2)
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--test", action="store_true", default=False)
     args = parser.parse_args()
@@ -108,13 +108,21 @@ if __name__ == "__main__":
             lm = LanguageModel(mode=args.mode, source=source, N=args.N)
 
             if args.train:
-                corpus = lm.create_corpus(sentences=dtgen.dataset["train"]["gt"])
+                if args.mode == "kaldi":
+                    print("\n##########################################\n")
+                    print("You'll have to work hard for this option.\n")
+                    print("See some instructions in the ``src/tool/statistical.py`` file (kaldi function section)")
+                    print("and also in the ``src/tool/lib/kaldi-srilm-script.sh`` file. \n☘️ ☘️ ☘️")
+                    print("\n##########################################\n")
+                else:
+                    corpus = lm.create_corpus(sentences=dtgen.dataset["train"]["gt"])
 
-                with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
-                    lg.write(corpus)
+                    with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
+                        lg.write(corpus)
 
             elif args.test:
-                lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
+                if args.mode != "kaldi":
+                    lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
                 start_time = time.time()
                 predicts = lm.autocorrect(sentences=dtgen.dataset["test"]["dt"])
@@ -138,10 +146,10 @@ if __name__ == "__main__":
                 dtgen.one_hot_process = False
                 model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=256, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.2)
 
             # set parameter `learning_rate` to customize or get default value
-            model.compile()
+            model.compile(learning_rate=0.001)
 
             checkpoint = "checkpoint_weights.hdf5"
             model.load_checkpoint(target=os.path.join(output_path, checkpoint))

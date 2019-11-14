@@ -76,7 +76,42 @@ def split_by_max_length(sentence, max_text_length=128):
     return new_n_sentences
 
 
-def add_noise(x, max_text_length, max_prob=0.9, iterations=12):
+def generate_ngram_sentences(sentence):
+    """
+    Generate sentences combinations (like ngrams).
+    i.e.:
+    original sentence: I like code .
+        > sentence 1 : I like
+        > sentence 2 : I like code .
+        > sentence 3 : like
+        > sentence 4 : like code .
+        > sentence 5 : code .
+    """
+
+    tokens = sentence.split()
+    ngrams = []
+
+    for y in range(len(tokens)):
+        new_sentence = True
+        support_text = ""
+
+        for x in range(y, len(tokens)):
+            if len(tokens[x]) < 3 and not sentence.endswith(tokens[x]):
+                support_text += f" {tokens[x]}"
+                continue
+
+            last = ""
+            if x > y and len(ngrams) > 0 and not new_sentence:
+                last = ngrams[-1]
+
+            ngrams.append(f"{last}{support_text} {tokens[x]}".strip())
+            new_sentence = False
+            support_text = ""
+
+    return ngrams
+
+
+def add_noise(x, max_text_length, max_prob=0.9, iterations=9):
     """Generate some artificial spelling mistakes (or not) in the sentences"""
 
     assert(1 <= iterations)
@@ -87,12 +122,12 @@ def add_noise(x, max_text_length, max_prob=0.9, iterations=12):
     sentences = x.copy()
 
     for i, s in enumerate(sentences):
-        if len(s) <= 2:
-            continue
-
         prob = len(s) * (max_prob / max_text_length)
 
         for _ in range(iterations):
+            if len(s) <= 2:
+                continue
+
             if np.random.rand() <= prob:
                 # Replace characters...
                 sentence = s
