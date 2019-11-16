@@ -20,7 +20,7 @@ RE_APOSTROPHE_FILTER = re.compile(r'&#39;|[ʼ՚＇‘’‛❛❜ߴߵ`‵´ˊˋ{
                                                                                       chr(2387), chr(5151),
                                                                                       chr(5152), chr(65344),
                                                                                       chr(8242)), re.UNICODE)
-RE_RESERVED_CHAR_FILTER = re.compile(r'[¶¤«œ»]', re.UNICODE)
+RE_RESERVED_CHAR_FILTER = re.compile(r'[¶¤«»]', re.UNICODE)
 RE_LEFT_PARENTH_FILTER = re.compile(r'[\(\[\{\⁽\₍\❨\❪\﹙\（]', re.UNICODE)
 RE_RIGHT_PARENTH_FILTER = re.compile(r'[\)\]\}\⁾\₎\❩\❫\﹚\）]', re.UNICODE)
 RE_BASIC_CLEANER = re.compile(r'[^\w\s{}]'.format(re.escape(string.punctuation)), re.UNICODE)
@@ -96,7 +96,7 @@ def generate_ngram_sentences(sentence):
         support_text = ""
 
         for x in range(y, len(tokens)):
-            if len(tokens[x]) < 3 and not sentence.endswith(tokens[x]):
+            if len(tokens[x]) <= 3 and not sentence.endswith(tokens[x]):
                 support_text += f" {tokens[x]}"
                 continue
 
@@ -117,8 +117,7 @@ def add_noise(x, max_text_length, max_prob=0.9, iterations=9):
     assert(1 <= iterations)
     assert(0.0 <= max_prob <= 1.0)
 
-    chars = list(f"{string.ascii_letters}{string.digits} .")
-    np.random.shuffle(chars)
+    chars = list(" ." + string.digits + string.ascii_letters)
     sentences = x.copy()
 
     for i, s in enumerate(sentences):

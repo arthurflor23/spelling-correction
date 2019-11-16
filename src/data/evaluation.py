@@ -35,10 +35,10 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
     """Calculate and organize metrics and predicts informations"""
 
     e_corpus = "\n".join([
-        f"Total test sentences: {dtgen.total_test}",
+        f"Total test sentences: {dtgen.size['test']}",
         f"{plus}",
         f"Total time:           {total_time:.8f} sec",
-        f"Time per item:        {(total_time / dtgen.total_test):.8f} sec\n",
+        f"Time per item:        {(total_time / dtgen.size['test']):.8f} sec\n",
         f"Metrics (before):",
         f"Character Error Rate: {metrics[0][0]:.8f}",
         f"Word Error Rate:      {metrics[0][1]:.8f}",
@@ -50,7 +50,7 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
     ])
 
     p_corpus = []
-    for i in range(dtgen.total_test):
+    for i in range(dtgen.size['test']):
         p_corpus.append(f"GT {dtgen.dataset['test']['gt'][i]}")
         p_corpus.append(f"DT {dtgen.dataset['test']['dt'][i]}")
         p_corpus.append(f"PD {new_dt[i]}\n")

@@ -17,7 +17,9 @@ class Dataset():
         self.source = source
         self.names = names
         self.min_text_len = min_text_len
+
         self.partitions = {"train": [], "valid": [], "test": []}
+        self.size = dict()
 
     def read_lines(self, maxlen):
         """Read sentences from dataset and preprocess"""
@@ -42,14 +44,14 @@ class Dataset():
             valid_partition = int(len(lines) * 0.1)
             test_partition = int(len(lines) * 0.01)
 
-            self.partitions["train"] = lines[valid_partition:-test_partition]
-            self.partitions["valid"] = lines[:valid_partition]
-            self.partitions["test"] = lines[-test_partition:]
+            self.partitions['train'] = lines[valid_partition:-test_partition]
+            self.partitions['valid'] = lines[:valid_partition]
+            self.partitions['test'] = lines[-test_partition:]
 
-        self.total_train = len(self.partitions["train"])
-        self.total_valid = len(self.partitions["valid"])
-        self.total_test = len(self.partitions["test"])
-        self.total = self.total_train + self.total_valid + self.total_test
+        self.size['train'] = len(self.partitions['train'])
+        self.size['valid'] = len(self.partitions['valid'])
+        self.size['test'] = len(self.partitions['test'])
+        self.size['total'] = self.size['train'] + self.size['valid'] + self.size['test']
 
     def _verify_text(self, text):
         """Check if text has more characters instead of punctuation marks"""
@@ -57,7 +59,7 @@ class Dataset():
         x = text.translate(str.maketrans("", "", string.punctuation))
         x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
 
-        return len(x) >= 3 and len(x) >= len(text) * 0.5
+        return len(x) > 3 and len(x) >= len(text) * 0.5
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
@@ -128,11 +130,9 @@ class Dataset():
                     lines_fr = [line for line in f if len(line) > self.min_text_len]
                     lines_fr = list(set(lines_fr))[::-1]
 
-        # English and french will be 7% samples (around 1 M).
-        factor = 0.07
-
-        lines_en = lines_en[:int(len(lines_en) * factor)]
-        lines_fr = lines_fr[:int(len(lines_fr) * factor)]
+        # English and french will be 1% samples.
+        lines_en = lines_en[:int(len(lines_en) * 0.01)]
+        lines_fr = lines_fr[:int(len(lines_fr) * 0.01)]
         lines = lines_en + lines_fr
 
         del lines_en, lines_fr
@@ -175,7 +175,7 @@ class Dataset():
 
             for page_tag in xml_file:
                 for _, line_tag in enumerate(page_tag.iter("Line")):
-                    text = " ".join(html.unescape(line_tag.attrib["Value"]).split())
+                    text = " ".join(html.unescape(line_tag.attrib['Value']).split())
 
                     if len(text) > self.min_text_len:
                         lines.append(text)
@@ -264,22 +264,22 @@ def read_from_txt(file_name):
         x = " ".join(arr[1::])
 
         if arr[0] == "TR_L":
-            train["gt"].append(x)
-            train["dt"].append(None)
+            train['gt'].append(x)
+            train['dt'].append("")
         elif arr[0] == "TR_P":
-            train["dt"][-1] = x
+            train['dt'][-1] = x
 
         if arr[0] == "VA_L":
-            valid["gt"].append(x)
-            valid["dt"].append(None)
+            valid['gt'].append(x)
+            valid['dt'].append("")
         elif arr[0] == "VA_P":
-            valid["dt"][-1] = x
+            valid['dt'][-1] = x
 
         if arr[0] == "TE_L":
-            test["gt"].append(x)
-            test["dt"].append(None)
+            test['gt'].append(x)
+            test['dt'].append("")
         elif arr[0] == "TE_P":
-            test["dt"][-1] = x
+            test['dt'][-1] = x
 
     dt = {"train": train, "valid": valid, "test": test}
 

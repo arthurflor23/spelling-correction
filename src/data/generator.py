@@ -8,40 +8,40 @@ from tensorflow.keras.preprocessing.sequence import pad_sequences
 class DataGenerator():
     """Generator class with data streaming"""
 
-    def __init__(self, source, batch_size, charset, max_text_length=128):
+    def __init__(self, source, batch_size, charset, max_text_length=128, predict=False):
         self.tokenizer = Tokenizer(charset, max_text_length)
         self.batch_size = batch_size
+        self.partitions = ["test"] if predict else ["train", "valid", "test"]
 
         self.dataset = reader.read_from_txt(source)
-        self._prepare_dataset()
+        self.size = dict()
+        self.steps = dict()
+        self.index = dict()
 
-        self.total_train = len(self.dataset["train"]["gt"])
-        self.total_valid = len(self.dataset["valid"]["gt"])
-        self.total_test = len(self.dataset["test"]["gt"])
+        for pt in self.partitions:
+            self.size[pt] = len(self.dataset[pt]['gt'])
+            self.steps[pt] = np.maximum(self.size[pt] // self.batch_size, 1)
+            self.index[pt] = 0
 
-        self.train_steps = np.maximum(self.total_train // batch_size, 1)
-        self.valid_steps = np.maximum(self.total_valid // batch_size, 1)
-        self.test_steps = np.maximum(self.total_test // batch_size, 1)
-
-        self.train_index, self.valid_index, self.test_index = 0, 0, 0
-
-        self.noise_process = len(max(self.dataset["train"]["dt"], default=[])) == 0
+        self.noise_process = len(max(self.dataset['train']['dt'], default=[""])) == 0
         self.one_hot_process = True
+
+        self._prepare_dataset()
 
     def _prepare_dataset(self):
         """Prepare (text standardize and full fill) dataset up"""
 
-        for pt in ["train", "valid", "test"]:
+        for pt in self.partitions:
             # text standardize to avoid erros
-            self.dataset[pt]["dt"] = [pp.text_standardize(x) for x in self.dataset[pt]["dt"]]
-            self.dataset[pt]["gt"] = [pp.text_standardize(x) for x in self.dataset[pt]["gt"]]
+            self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
+            self.dataset[pt]['gt'] = [pp.text_standardize(x) for x in self.dataset[pt]['gt']]
 
             # full fill process to make up batch_size and steps
-            while len(self.dataset[pt]["gt"]) % self.batch_size:
-                i = np.random.choice(np.arange(0, len(self.dataset[pt]["gt"])), 1)[0]
+            while len(self.dataset[pt]['gt']) % self.batch_size:
+                i = np.random.choice(np.arange(0, len(self.dataset[pt]['gt'])), 1)[0]
 
-                self.dataset[pt]["dt"].append(self.dataset[pt]["dt"][i])
-                self.dataset[pt]["gt"].append(self.dataset[pt]["gt"][i])
+                self.dataset[pt]['dt'].append(self.dataset[pt]['dt'][i])
+                self.dataset[pt]['gt'].append(self.dataset[pt]['gt'][i])
 
     def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False):
         """Prepare inputs to feed the model"""
@@ -66,15 +66,15 @@ class DataGenerator():
         """Get the next batch from train partition (yield)"""
 
         while True:
-            if self.train_index >= self.total_train:
-                self.train_index = 0
+            if self.index['train'] >= self.size['train']:
+                self.index['train'] = 0
 
-            index = self.train_index
-            until = self.train_index + self.batch_size
-            self.train_index += self.batch_size
+            index = self.index['train']
+            until = self.index['train'] + self.batch_size
+            self.index['train'] += self.batch_size
 
-            targets = self.dataset["train"]["gt"][index:until]
-            inputs = targets if self.noise_process else self.dataset["train"]["dt"][index:until]
+            targets = self.dataset['train']['gt'][index:until]
+            inputs = targets if self.noise_process else self.dataset['train']['dt'][index:until]
 
             inputs = self.prepare_sequence(inputs, sos=True, eos=True, add_noise=self.noise_process)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
@@ -86,15 +86,15 @@ class DataGenerator():
         """Get the next batch from valid partition (yield)"""
 
         while True:
-            if self.valid_index >= self.total_valid:
-                self.valid_index = 0
+            if self.index['valid'] >= self.size['valid']:
+                self.index['valid'] = 0
 
-            index = self.valid_index
-            until = self.valid_index + self.batch_size
-            self.valid_index += self.batch_size
+            index = self.index['valid']
+            until = self.index['valid'] + self.batch_size
+            self.index['valid'] += self.batch_size
 
-            inputs = self.dataset["valid"]["dt"][index:until]
-            targets = self.dataset["valid"]["gt"][index:until]
+            inputs = self.dataset['valid']['dt'][index:until]
+            targets = self.dataset['valid']['gt'][index:until]
 
             inputs = self.prepare_sequence(inputs, sos=True, eos=True)
             decoder_inputs = self.prepare_sequence(targets, sos=True)
@@ -106,14 +106,14 @@ class DataGenerator():
         """Get the next batch from test partition (yield)"""
 
         while True:
-            if self.test_index >= self.total_test:
-                self.test_index = 0
+            if self.index['test'] >= self.size['test']:
+                self.index['test'] = 0
 
-            index = self.test_index
-            until = self.test_index + self.batch_size
-            self.test_index += self.batch_size
+            index = self.index['test']
+            until = self.index['test'] + self.batch_size
+            self.index['test'] += self.batch_size
 
-            inputs = self.dataset["test"]["dt"][index:until]
+            inputs = self.dataset['test']['dt'][index:until]
 
             inputs = self.prepare_sequence(inputs, sos=True, eos=True)
 
