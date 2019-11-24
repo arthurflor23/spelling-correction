@@ -50,28 +50,25 @@ def text_standardize(txt):
 def split_by_max_length(sentence, max_text_length=128):
     """Standardize n_sentences: split long n_sentences into max_text_length"""
 
-    tolerance = 5
-    new_n_sentences = []
+    if len(sentence) < max_text_length:
+        return [sentence]
 
-    if len(sentence) < max_text_length - tolerance:
-        new_n_sentences.append(sentence)
-    else:
-        splitted = sentence.split()
-        text = []
+    splitted = sentence.split()
+    new_n_sentences, text = [], []
 
-        for x in splitted:
-            text_temp = " ".join(text)
+    for x in splitted:
+        support_text = " ".join(text)
 
-            if len(text_temp) + len(x) < max_text_length:
-                text.append(x)
-            else:
-                new_n_sentences.append(text_temp)
-                text = [x]
+        if len(support_text) + len(x) < max_text_length:
+            text.append(x)
+        else:
+            new_n_sentences.append(support_text)
+            text = [x]
 
-        text_temp = " ".join(text)
+    text = " ".join(text)
 
-        if len(text_temp) > tolerance:
-            new_n_sentences.append(text_temp)
+    if len(text) > 2:
+        new_n_sentences.append(text)
 
     return new_n_sentences
 
@@ -96,7 +93,10 @@ def generate_ngram_sentences(sentence):
         support_text = ""
 
         for x in range(y, len(tokens)):
-            if len(tokens[x]) <= 3 and not sentence.endswith(tokens[x]):
+            if y == 0 and x == len(tokens) - 1:
+                continue
+
+            if len(tokens[x]) <= 2 and tokens[x] != tokens[-1]:
                 support_text += f" {tokens[x]}"
                 continue
 
@@ -111,8 +111,8 @@ def generate_ngram_sentences(sentence):
     return ngrams
 
 
-def add_noise(x, max_text_length, max_prob=0.9, iterations=9):
-    """Generate some artificial spelling mistakes (or not) in the sentences"""
+def add_noise(x, max_text_length, max_prob=0.8, iterations=9):
+    """Generate some artificial spelling mistakes in the sentences"""
 
     assert(1 <= iterations)
     assert(0.0 <= max_prob <= 1.0)

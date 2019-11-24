@@ -48,14 +48,14 @@ class LanguageModel():
         You'll need to do all by yourself:
 
         1. Compile Kaldi with SRILM and OpenBLAS.
-        2. Create these files:
+        2. Add kaldi folder in the project `lib` folder (``src/tool/lib/kaldi``)
+        3. Generate files (search `--kaldi_assets` in https://github.com/arthurflor23/handwritten-text-recognition):
             a. `chars.lst`
             b. `conf_mats.ark`
             c. `ground_truth.lst`
             d. `ID_test.lst`
             e. `ID_train.lst`
-        3. Put kaldi folder in the project `lib` folder: ``src/tool/lib/kaldi``
-        4. Put the files in the project `output` folder: ``output/<DATASET>/kaldi``
+        4. Add files (item 3) in the project `output` folder: ``output/<DATASET>/kaldi/``
 
         More information (maybe help) in ``src/tool/lib/kaldi-srilm-script.sh``.
 

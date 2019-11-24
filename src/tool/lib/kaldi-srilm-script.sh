@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Compile and install Kaldi with SRILM and OpenBLAS
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Download:
 #	Kaldi: https://github.com/kaldi-asr/kaldi
 #   SRILM: http://www.speech.sri.com/projects/srilm/download.html
@@ -18,11 +18,12 @@
 
 #   $ cd ../src && ./configure --shared --mathlib=OPENBLAS
 #   $ make -j clean depend; make -j $(nproc) && cd ../../
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------------------------------------------
 # Setting parameters
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 ROOT_DIR=$(pwd)/$(dirname "$0")
 
 # Default path (root dir)
@@ -30,47 +31,52 @@ if [ -z $1 ]; then TARGET_DIR=${ROOT_DIR}; else TARGET_DIR=$1; fi
 
 # N-Gram Language Model Order
 if [ -z $2 ]; then NGRAM_ORDER=2; else NGRAM_ORDER=$2; fi
-# --------------------------------------------------------------------------------------------------
+# ==========================================================================================================
+
+
+# ----------------------------------------------------------------------------------------------------------
 # Settings and Environment Variables
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Data settings
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 DEVEL_PM_DIR=conf_mats.ark    		  	# Directory of Validation Confidence Matrices
 GT_FILE=ground_truth.lst		        # File containing ground-truth in Kaldi format
 TRAIN_ID_LST=ID_train.lst		  		# List of line IDs of Training set
 DEVEL_ID_LST=ID_test.lst		  		# List of line IDs of Validation set
 CHRS_LST=chars.lst                      # File containing the list of chars
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Special symbols
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 BLANK_SYMB="<ctc>"                      # BLSTM non-character symbol
 WHITESPACE_SYMB="<space>"               # White space symbol
 DUMMY_CHAR="<DUMMY>"                    # Especial HMM used for modelling "</s>" end-sentence
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Feature processing settings
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 LOGLKH_ALPHA_FACTOR=0.3                 # p(x|s) = P(s|x) / P(s)^LOGLKH_ALPHA_FACTOR
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Modelling settings
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 HMM_LOOP_PROB=0.5			  			# Self-Loop HMM-state probability
 HMM_NAC_PROB=0.5			  			# BLSTM-NaC HMM-state probability
 GSF=1.0		 			  				# Grammar Scale Factor
 WIP=0.25		 			  			# Word Insertion Penalty
 ASF=1.5					  				# Acoustic Scale Factor
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # Decoding settings
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 MAX_NUM_ACT_STATES=2007483647		  	# Maximum number of active states
 BEAM_SEARCH=15				  			# Beam search
 LATTICE_BEAM=15				  			# Lattice generation beam
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 # System settings
-# --------------------------------------------------------------------------------------------------
+# ----------------------------------------------------------------------------------------------------------
 N_CORES=$(nproc)						# Number of cores
-# ==================================================================================================
+# ==========================================================================================================
 
 
+# Check for required files
+# ==========================================================================================================
 [ -f ${TARGET_DIR}/$DEVEL_PM_DIR ] || 
 {
   echo "No file: ${TARGET_DIR}/${DEVEL_PM_DIR}"
@@ -96,21 +102,15 @@ N_CORES=$(nproc)						# Number of cores
   echo "No file: ${TARGET_DIR}/${CHRS_LST}"
   exit 1
 }
+# ==========================================================================================================
 
 
-# Check for installed software
-# ==================================================================================================
+# Export PATH
+# ==========================================================================================================
 # SRILM and KALDI Stuff
 export KALDI_ROOT=$ROOT_DIR/kaldi
-
-export LIBLBFGS=${KALDI_ROOT}/tools/liblbfgs-1.10
-export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${LIBLBFGS}/lib/.libs
-export SRILM=${KALDI_ROOT}/tools/srilm
-export PATH=${PATH}:${SRILM}/bin:${SRILM}/bin/i686-m64
-export PATH=${KALDI_ROOT}/tools/python:${PATH}
-
-export PATH=$PATH:$KALDI_ROOT/src/bin:$KALDI_ROOT/tools/openfst/bin:$KALDI_ROOT/src/fstbin/:$KALDI_ROOT/src/gmmbin/:$KALDI_ROOT/src/featbin/:$KALDI_ROOT/src/lmbin/:$KALDI_ROOT/src/sgmmbin/:$KALDI_ROOT/src/sgmm2bin/:$KALDI_ROOT/src/fgmmbin/:$KALDI_ROOT/src/latbin/:$KALDI_ROOT/src/nnet2bin/:$KALDI_ROOT/src/nnetbin:$KALDI_ROOT/src/online2bin/:$KALDI_ROOT/src/ivectorbin/:$ROOT_DIR/utils
-export PATH
+export LIBLBFGS=${KALDI_ROOT}/tools/liblbfgs-1.10 && export LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-}:${LIBLBFGS}/lib/.libs && export SRILM=${KALDI_ROOT}/tools/srilm && export PATH=${PATH}:${SRILM}/bin:${SRILM}/bin/i686-m64 && export PATH=${KALDI_ROOT}/tools/python:${PATH} && export PATH=$PATH:$KALDI_ROOT/src/bin:$KALDI_ROOT/tools/openfst/bin:$KALDI_ROOT/src/fstbin/:$KALDI_ROOT/src/gmmbin/:$KALDI_ROOT/src/featbin/:$KALDI_ROOT/src/lmbin/:$KALDI_ROOT/src/sgmmbin/:$KALDI_ROOT/src/sgmm2bin/:$KALDI_ROOT/src/fgmmbin/:$KALDI_ROOT/src/latbin/:$KALDI_ROOT/src/nnet2bin/:$KALDI_ROOT/src/nnetbin:$KALDI_ROOT/src/online2bin/:$KALDI_ROOT/src/ivectorbin/:$ROOT_DIR/utils && export PATH
+############################################################################################################
 
 
 # Splitting reference transcripts according to the train and devel ID lists
@@ -134,7 +134,7 @@ export PATH
 
 # Processing development feature samples into Kaldi format
 ############################################################################################################
-[ -e ${TARGET_DIR}/data/test/${DEVEL_PM_DIR}_alp${LOGLKH_ALPHA_FACTOR}.ark ] ||
+[ -e ${TARGET_DIR}/data/test/${DEVEL_PM_DIR}_alp${LOGLKH_ALPHA_FACTOR}.scp ] ||
 {
   echo "Processing development samples into Kaldi format ..." 1>&2
   mkdir -p ${TARGET_DIR}/data/test

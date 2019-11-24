@@ -14,13 +14,13 @@ import tensorflow as tf
 
 from contextlib import redirect_stdout
 from tensorflow.keras import Input, Model
-from tensorflow.keras.callbacks import CSVLogger, TensorBoard
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.utils import Progbar, GeneratorEnqueuer
+
+from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
+from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
 from tensorflow.keras.layers import Dense, Dropout, LayerNormalization
 from tensorflow.keras.layers import Lambda, Embedding
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.utils import OrderedEnqueuer, Progbar
-from tensorflow.keras.utils import Sequence, GeneratorEnqueuer
 
 tf.get_logger().setLevel(logging.ERROR)
 
@@ -63,13 +63,14 @@ class Transformer():
     def summary(self, output=None, target=None):
         """Show/Save model structure (summary)"""
 
+        self.model.summary()
+
         if target is not None:
             os.makedirs(output, exist_ok=True)
 
             with open(os.path.join(output, target), "w") as f:
                 with redirect_stdout(f):
                     self.model.summary()
-        self.model.summary()
 
     def load_checkpoint(self, target):
         """Restore model to construct transformer/encoder/decoder"""
@@ -82,7 +83,7 @@ class Transformer():
             self.encoder.load_weights(target, by_name=True)
             self.decoder.load_weights(target, by_name=True)
 
-    def get_callbacks(self, logdir, hdf5, monitor="val_loss", verbose=0):
+    def get_callbacks(self, logdir, checkpoint, monitor="val_loss", verbose=0):
         """Setup the list of callbacks for the model"""
 
         callbacks = [
@@ -98,16 +99,22 @@ class Transformer():
                 write_images=False,
                 update_freq="epoch"),
             ModelCheckpoint(
-                filepath=os.path.join(logdir, hdf5),
+                filepath=checkpoint,
                 monitor=monitor,
                 save_best_only=True,
                 save_weights_only=True,
                 verbose=verbose),
             EarlyStopping(
                 monitor=monitor,
-                min_delta=0,
+                min_delta=1e-8,
                 patience=20,
                 restore_best_weights=True,
+                verbose=verbose),
+            ReduceLROnPlateau(
+                monitor=monitor,
+                min_delta=1e-8,
+                factor=0.2,
+                patience=12,
                 verbose=verbose)
         ]
 
@@ -139,29 +146,14 @@ class Transformer():
 
         if learning_rate is None:
             learning_rate = CustomSchedule(d_model=self.d_model)
+            self.learning_schedule = True
+        else:
+            self.learning_schedule = False
 
         optimizer = Adam(learning_rate=learning_rate, beta_1=0.9, beta_2=0.98, epsilon=1e-9)
 
         self.model = Model(inputs=[inputs, dec_inputs], outputs=dec_outputs, name="transformer")
         self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=[self.accuracy])
-
-    @staticmethod
-    def accuracy(y_true, y_pred):
-        """Accuracy function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
-
-        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
-        accuracy = tf.metrics.SparseCategoricalAccuracy()(y_true, y_pred)
-        return accuracy
-
-    @staticmethod
-    def loss_func(y_true, y_pred):
-        """Loss function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
-
-        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
-        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction="none")(y_true, y_pred)
-        mask = tf.cast(tf.not_equal(y_true, 0), dtype="float32")
-        loss = tf.multiply(loss, mask)
-        return tf.reduce_mean(loss)
 
     def _encoder_model(self, vocab_size, num_layers, units, d_model, num_heads, dropout, name="encoder"):
         """Build encoder model with your layers"""
@@ -270,111 +262,133 @@ class Transformer():
 
         return Model(inputs=[inputs, enc_outputs, look_ahead_mask, padding_mask], outputs=outputs, name=name)
 
-    def fit_generator(self,
-                      generator,
-                      steps_per_epoch,
-                      epochs=1,
-                      verbose=1,
-                      callbacks=None,
-                      validation_data=None,
-                      validation_steps=None,
-                      class_weight=None,
-                      max_queue_size=10,
-                      workers=1,
-                      shuffle=True,
-                      initial_epoch=0):
+    def fit(self,
+            x=None,
+            y=None,
+            batch_size=None,
+            epochs=1,
+            verbose=1,
+            callbacks=None,
+            validation_split=0.0,
+            validation_data=None,
+            shuffle=True,
+            class_weight=None,
+            sample_weight=None,
+            initial_epoch=0,
+            steps_per_epoch=None,
+            validation_steps=None,
+            validation_freq=1,
+            max_queue_size=10,
+            workers=1,
+            use_multiprocessing=False,
+            **kwargs):
         """
-        Model training on data yielded batch-by-batch by a Python generator.
-        The generator is run in parallel to the model, for efficiency.
+        Model training on data yielded (fit function has support to generator).
+        A fit() abstration function of TensorFlow 2 using the model_train.
 
-        A major modification concerns the generator that must provide x and y data of the form:
-          [input_sequences_encoder, input_sequences_decoder], label_sequences
-
-        :param: See tensorflow.keras.engine.Model.fit_generator()
-        :return: A History object
+        :param: See tensorflow.keras.Model.fit()
+        :return: A history object
         """
-        out = self.model.fit_generator(generator, steps_per_epoch=steps_per_epoch, epochs=epochs,
-                                       verbose=verbose, callbacks=callbacks, validation_data=validation_data,
-                                       validation_steps=validation_steps, class_weight=class_weight,
-                                       max_queue_size=max_queue_size, workers=workers, shuffle=shuffle,
-                                       initial_epoch=initial_epoch)
+
+        # remove ReduceLROnPlateau (if exist) when use schedule learning rate
+        if callbacks and self.learning_schedule:
+            callbacks = [x for x in callbacks if not isinstance(x, ReduceLROnPlateau)]
+
+        out = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=verbose,
+                             callbacks=callbacks, validation_split=validation_split,
+                             validation_data=validation_data, shuffle=shuffle,
+                             class_weight=class_weight, sample_weight=sample_weight,
+                             initial_epoch=initial_epoch, steps_per_epoch=steps_per_epoch,
+                             validation_steps=validation_steps, validation_freq=validation_freq,
+                             max_queue_size=max_queue_size, workers=workers,
+                             use_multiprocessing=use_multiprocessing, **kwargs)
         return out
 
-    def predict_generator(self,
-                          generator,
-                          steps,
-                          max_queue_size=10,
-                          workers=1,
-                          use_multiprocessing=False,
-                          verbose=0):
+    def predict(self,
+                x,
+                batch_size=None,
+                verbose=0,
+                steps=1,
+                callbacks=None,
+                max_queue_size=10,
+                workers=1,
+                use_multiprocessing=False):
         """
-        Generates predictions for the input samples from a data generator.
-        The generator should return the same kind of data as accepted by `predict_on_batch`.
+        Model predicting on data yielded (generator).
+        A predict() abstration function of TensorFlow 2 using the encoder and decoder models
 
-        :param: See tensorflow.keras.engine.Model.predict_generator()
+        :param: See tensorflow.keras.Model.predict()
         :return: A numpy array(s) of predictions.
         """
 
         self.encoder._make_predict_function()
         self.decoder._make_predict_function()
 
-        is_sequence = isinstance(generator, Sequence)
-        steps_done = 0
-        enqueuer = None
-
         try:
-            if is_sequence:
-                enqueuer = OrderedEnqueuer(generator, use_multiprocessing=use_multiprocessing)
-            else:
-                enqueuer = GeneratorEnqueuer(generator, use_multiprocessing=use_multiprocessing)
-
+            enqueuer = GeneratorEnqueuer(x, use_multiprocessing=use_multiprocessing)
             enqueuer.start(workers=workers, max_queue_size=max_queue_size)
             output_generator = enqueuer.get()
-            predicts = []
 
+            steps_done = 0
             if verbose == 1:
+                print("Model Predict")
                 progbar = Progbar(target=steps)
 
+            predicts = []
+
             while steps_done < steps:
-                x = next(output_generator)
-                predicts.extend([self.infer(sentence) for sentence in x])
+                x = next(output_generator)[0]
+
+                for sentence in x:
+                    en_input = tf.expand_dims(sentence, axis=0)
+                    en_output, en_mask = self.encoder.predict(en_input)
+
+                    dec_input = tf.expand_dims([self.tokenizer.SOS], axis=0)
+
+                    for _ in range(self.tokenizer.maxlen):
+                        dec_output = self.decoder.predict([dec_input, en_output, en_mask])
+                        predicted_id = tf.cast(tf.argmax(dec_output[:, -1:, :], axis=-1), dtype="int32")
+
+                        if tf.equal(predicted_id, self.tokenizer.EOS):
+                            break
+
+                        # concatenated the predicted_id to the output
+                        # which is given to the decoder as its input.
+                        dec_input = tf.concat((dec_input, predicted_id), axis=-1)
+
+                    dec_input = tf.squeeze(dec_input, axis=0)
+                    dec_input = self.tokenizer.decode([i for i in dec_input[1:] if i < self.tokenizer.vocab_size])
+                    predicts.extend(" ".join(dec_input.split()))
+
+                # Sampling finished
+                predicts = [self.tokenizer.remove_tokens(x) for x in predicts]
 
                 steps_done += 1
                 if verbose == 1:
                     progbar.update(steps_done)
 
         finally:
-            if enqueuer is not None:
-                enqueuer.stop()
+            enqueuer.stop()
 
         return predicts
 
-    def infer(self, sentence):
-        """
-        Inference function from sentence input.
-        """
+    @staticmethod
+    def accuracy(y_true, y_pred):
+        """Accuracy function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
-        en_input = tf.expand_dims(sentence, axis=0)
-        en_output, en_mask = self.encoder.predict(en_input)
+        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
+        accuracy = tf.metrics.SparseCategoricalAccuracy()(y_true, y_pred)
+        return accuracy
 
-        dec_input = tf.expand_dims([self.tokenizer.SOS], axis=0)
+    @staticmethod
+    def loss_func(y_true, y_pred):
+        """Loss function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
-        for _ in range(self.tokenizer.maxlen):
-            dec_output = self.decoder.predict([dec_input, en_output, en_mask])
-            predicted_id = tf.cast(tf.argmax(dec_output[:, -1:, :], axis=-1), dtype="int32")
-
-            if tf.equal(predicted_id, self.tokenizer.EOS):
-                break
-
-            # concatenated the predicted_id to the output
-            # which is given to the decoder as its input.
-            dec_input = tf.concat((dec_input, predicted_id), axis=-1)
-
-        dec_input = tf.squeeze(dec_input, axis=0)
-        dec_input = self.tokenizer.decode([i for i in dec_input[1:] if i < self.tokenizer.vocab_size])
-        dec_input = " ".join(dec_input.split())
-
-        return dec_input
+        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
+        loss = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True, reduction="none")(y_true, y_pred)
+        mask = tf.cast(tf.not_equal(y_true, 0), dtype="float32")
+        loss = tf.multiply(loss, mask)
+        return tf.reduce_mean(loss)
 
     @staticmethod
     def create_look_ahead_mask(x):

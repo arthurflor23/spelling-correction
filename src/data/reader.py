@@ -28,38 +28,43 @@ class Dataset():
             print(f"The {dataset} dataset will be transformed...")
             lines = getattr(self, f"_{dataset}")()
 
-            # generate new sentences
-            lines = [y for x in lines for y in pp.generate_ngram_sentences(x)]
             # split sentences by max length
             lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
+
             # standardize sentences
             lines = [pp.text_standardize(x) for x in lines]
-            # ignore sentences with more punctuation percent
-            lines = [x for x in lines if self._verify_text(x)]
-            # remove duplicate sentences
-            lines = list(set([x for x in lines if self._verify_text(x)]))
-            # shuffle data one more time
-            np.random.shuffle(lines)
 
-            valid_partition = int(len(lines) * 0.1)
-            test_partition = int(len(lines) * 0.01)
+            # generate ngrams from senteces and shuffle
+            ngrams = [y for x in lines for y in pp.generate_ngram_sentences(x)]
+            np.random.shuffle(ngrams)
 
-            self.partitions['train'] = lines[valid_partition:-test_partition]
-            self.partitions['valid'] = lines[:valid_partition]
-            self.partitions['test'] = lines[-test_partition:]
+            # ignore duplicate items and ngrams with more punctuation percent
+            ngrams = list(set([x for x in ngrams if self.check_text(x)]))
+
+            # get 10% random ngrams into valid data
+            arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.1))
+            self.partitions['valid'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+
+            # get 1% random ngrams into valid data
+            arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.01))
+            self.partitions['test'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+
+            # get original lines and last ngrams into train data
+            self.partitions['train'] = lines + ngrams
+            np.random.shuffle(self.partitions['train'])
 
         self.size['train'] = len(self.partitions['train'])
         self.size['valid'] = len(self.partitions['valid'])
         self.size['test'] = len(self.partitions['test'])
         self.size['total'] = self.size['train'] + self.size['valid'] + self.size['test']
 
-    def _verify_text(self, text):
-        """Check if text has more characters instead of punctuation marks"""
+    def check_text(self, text):
+        """Make sure text has more characters instead of punctuation marks"""
 
         x = text.translate(str.maketrans("", "", string.punctuation))
         x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
 
-        return len(x) > 3 and len(x) >= len(text) * 0.5
+        return len(x) > 2 and len(x) > len(text) * 0.5
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
@@ -83,7 +88,7 @@ class Dataset():
         ptdir = os.path.join(basedir, "Partitions")
         lines, images = [], []
 
-        for x in ["TrainLines.lst", "ValidationLines.lst", "TestLines.lst"]:
+        for x in ['TrainLines.lst', 'ValidationLines.lst', 'TestLines.lst']:
             images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:
@@ -149,7 +154,7 @@ class Dataset():
         ptdir = os.path.join(basedir, "largeWriterIndependentTextLineRecognitionTask")
         lines, images = [], []
 
-        for x in ["trainset.txt", "validationset1.txt", "validationset2.txt", "testset.txt"]:
+        for x in ['trainset.txt', 'validationset1.txt', 'validationset2.txt', 'testset.txt']:
             images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:
@@ -185,7 +190,7 @@ class Dataset():
         basedir = os.path.join(self.source, "rimes")
         lines = []
 
-        for f in ["training_2011.xml", "eval_2011_annotated.xml"]:
+        for f in ['training_2011.xml', 'eval_2011_annotated.xml']:
             lines.extend(read_from_xml(os.path.join(basedir, f)))
 
         return list(set(lines))
@@ -199,7 +204,7 @@ class Dataset():
         ptdir = os.path.join(basedir, "sets")
         lines, pages, images = [], [], []
 
-        for x in ["train.txt", "valid.txt", "test.txt"]:
+        for x in ['train.txt', 'valid.txt', 'test.txt']:
             pages.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for x in pages:
@@ -227,7 +232,7 @@ class Dataset():
         ptdir = os.path.join(basedir, "sets", "cv1")
         lines, images = [], []
 
-        for x in ["train.txt", "valid.txt", "test.txt"]:
+        for x in ['train.txt', 'valid.txt', 'test.txt']:
             images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:

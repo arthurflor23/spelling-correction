@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--test", action="store_true", default=False)
 
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--N", type=int, default=2)
     args = parser.parse_args()
 
@@ -48,6 +48,7 @@ if __name__ == "__main__":
     data_path = os.path.join("..", "data")
     source_path = os.path.join(data_path, f"{args.source}.txt")
     output_path = os.path.join("..", "output", args.source, args.mode)
+    target_path = os.path.join(output_path, "checkpoint_weights.hdf5")
 
     max_text_length = 128
     charset_base = string.printable[:95]
@@ -59,7 +60,7 @@ if __name__ == "__main__":
         if args.source == "all":
             pass
         elif args.source == "htr":
-            names = [x for x in names if x in ["bentham", "iam", "rimes", "saintgall", "washington"]]
+            names = [x for x in names if x in ['bentham', 'iam', 'rimes', 'saintgall', 'washington']]
         else:
             names = [args.source]
 
@@ -100,6 +101,7 @@ if __name__ == "__main__":
                 f.write(f"TE_L {item}\nTE_P {noise}\n")
 
     else:
+        assert os.path.isfile(source_path) or os.path.isfile(target_path)
         os.makedirs(output_path, exist_ok=True)
 
         dtgen = DataGenerator(source=source_path,
@@ -108,7 +110,7 @@ if __name__ == "__main__":
                               max_text_length=max_text_length,
                               predict=args.test)
 
-        if args.mode in ["kaldi", "similarity", "norvig", "symspell"]:
+        if args.mode in ['kaldi', 'similarity', 'norvig', 'symspell']:
             lm = LanguageModel(mode=args.mode, source=source_path, N=args.N)
 
             if args.train:
@@ -148,29 +150,27 @@ if __name__ == "__main__":
         else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=256, num_heads=8, dropout=0.1)
+                model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=128, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.2)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.1)
 
             # set parameter `learning_rate` to customize or get default value
             model.compile(learning_rate=0.001)
-
-            checkpoint = "checkpoint_weights.hdf5"
-            model.load_checkpoint(target=os.path.join(output_path, checkpoint))
+            model.load_checkpoint(target=target_path)
 
             if args.train:
                 model.summary(output_path, "summary.txt")
-                callbacks = model.get_callbacks(logdir=output_path, hdf5=checkpoint, verbose=1)
+                callbacks = model.get_callbacks(logdir=output_path, checkpoint=target_path, verbose=1)
 
                 start_time = time.time()
-                h = model.fit_generator(generator=dtgen.next_train_batch(),
-                                        epochs=args.epochs,
-                                        steps_per_epoch=dtgen.steps['train'],
-                                        validation_data=dtgen.next_valid_batch(),
-                                        validation_steps=dtgen.steps['valid'],
-                                        callbacks=callbacks,
-                                        shuffle=True,
-                                        verbose=1)
+                h = model.fit(x=dtgen.next_train_batch(),
+                              epochs=args.epochs,
+                              steps_per_epoch=dtgen.steps['train'],
+                              validation_data=dtgen.next_valid_batch(),
+                              validation_steps=dtgen.steps['valid'],
+                              callbacks=callbacks,
+                              shuffle=True,
+                              verbose=1)
                 total_time = time.time() - start_time
 
                 loss = h.history['loss']
@@ -204,10 +204,9 @@ if __name__ == "__main__":
 
             elif args.test:
                 start_time = time.time()
-                predicts = model.predict_generator(generator=dtgen.next_test_batch(),
-                                                   steps=dtgen.steps['test'],
-                                                   use_multiprocessing=True,
-                                                   verbose=1)
+                predicts = model.predict(x=dtgen.next_test_batch(),
+                                         steps=dtgen.steps['test'],
+                                         verbose=1)
                 total_time = time.time() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
