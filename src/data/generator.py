@@ -21,12 +21,12 @@ class DataGenerator():
         self._prepare_dataset()
 
         self.one_hot_process = True
-        self.noise_process = len(max(self.dataset['train']['dt'], default=[''])) == 0
+        self.noise_process = not bool(max(self.dataset['train']['dt']))
 
-        # increase `iterations` parameter by 2 if there is noise process in the train data
+        # increase `iterations` parameter by 3 if there is noise process in the train data
         if self.noise_process:
             max_prob, iterations = pp.add_noise.__defaults__
-            pp.add_noise.__defaults__ = (max_prob, iterations + 2)
+            pp.add_noise.__defaults__ = (max_prob, iterations + 3)
 
     def _prepare_dataset(self):
         """Prepare (text standardize and full fill) dataset up"""
