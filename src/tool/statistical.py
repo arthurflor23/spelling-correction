@@ -19,9 +19,10 @@ from symspellpy.symspellpy import SymSpell
 
 class LanguageModel():
 
-    def __init__(self, mode, source, N=2):
+    def __init__(self, mode, source, output, N=2):
         self.autocorrect = getattr(self, f"_{mode}")
         self.source = source
+        self.output = output
         self.N = N
 
     def create_corpus(self, sentences):
@@ -40,7 +41,7 @@ class LanguageModel():
         self.dictionary_path = os.path.join(os.path.dirname(corpus_path), "dictionary.txt")
         self.corpus = " ".join(open(corpus_path).read().splitlines()).lower()
 
-    def _kaldi(self, sentences):
+    def _kaldi(self, sentences, train=False):
         """
         Kaldi Speech Recognition Toolkit with SRI Language Modeling Toolkit.
 
@@ -48,7 +49,7 @@ class LanguageModel():
         You'll need to do all by yourself:
 
         1. Compile Kaldi with SRILM and OpenBLAS.
-        2. Add kaldi folder in the project `lib` folder (``src/tool/lib/kaldi``)
+        2. Create and add kaldi folder in the project `lib` folder (``src/lib/kaldi/``)
         3. Generate files (search `--kaldi_assets` in https://github.com/arthurflor23/handwritten-text-recognition):
             a. `chars.lst`
             b. `conf_mats.ark`
@@ -57,7 +58,7 @@ class LanguageModel():
             e. `ID_train.lst`
         4. Add files (item 3) in the project `output` folder: ``output/<DATASET>/kaldi/``
 
-        More information (maybe help) in ``src/tool/lib/kaldi-srilm-script.sh``.
+        More information (maybe help) in ``src/lib/kaldi-decode-script.sh`` comments.
 
         References:
             D. Povey, A. Ghoshal, G. Boulianne, L. Burget, O. Glembek, N. Goel, M. Hannemann,
@@ -72,7 +73,23 @@ class LanguageModel():
             URL: http://www.speech.sri.com/projects/srilm/
         """
 
-        print("kaldi")
+        option = "TRAIN" if train else "TEST"
+
+        if os.system(f"./lib/kaldi-decode-script.sh {self.output} {option} {self.N}") != 0:
+            print("\n##########################################\n")
+            print("You'll have to work hard for this option.\n")
+            print("See some instructions in the ``src/tool/statistical.py`` file (kaldi function section)")
+            print("and also in the ``src/lib/kaldi-decode-script.sh`` file. \n☘️ ☘️ ☘️")
+            print("\n##########################################\n")
+
+        if not train:
+            predicts = open(os.path.join(self.output, "data", "predicts_t")).read().splitlines()
+
+            for i, line in enumerate(predicts):
+                tokens = line.split()
+                predicts[i] = "".join(tokens[1:]).replace("<space>", " ").strip()
+
+        return predicts
 
     def _similarity(self, sentences):
         """

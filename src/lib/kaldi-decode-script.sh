@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# ----------------------------------------------------------------------------------------------------------
 # Compile and install Kaldi with SRILM and OpenBLAS
 # ----------------------------------------------------------------------------------------------------------
 # Download:
@@ -7,17 +8,22 @@
 #   SRILM: http://www.speech.sri.com/projects/srilm/download.html
 
 # Extract files:
-#   $ unzip kaldi-*.zip && mv kaldi-master kaldi
-#   $ cp srilm-*.tar.gz kaldi/tools/srilm.tgz
+# $ unzip kaldi-*.zip && mv kaldi-master kaldi
+# $ cp srilm-*.tar.gz kaldi/tools/srilm.tgz
 
 # Compile Kaldi with SRILM and OpenBLAS (needs ``sox subversion gcc-fortran`` packages):
-#	$ cd kaldi/tools
-#   $ ./install_srilm.sh
-#   $ ./extras/install_openblas.sh
-#   $ make -j $(nproc)
+# $ cd ./kaldi/tools
 
-#   $ cd ../src && ./configure --shared --mathlib=OPENBLAS
-#   $ make -j clean depend; make -j $(nproc) && cd ../../
+# $ ./install_srilm.sh
+# $ ./extras/install_openblas.sh
+# $ make -j $(nproc)
+
+# $ cd ../src
+# $ ./configure --shared --mathlib=OPENBLAS
+# $ make -j clean depend
+# $ make -j $(nproc)
+
+# $ cd ../../
 # ----------------------------------------------------------------------------------------------------------
 
 
@@ -29,8 +35,14 @@ ROOT_DIR=$(pwd)/$(dirname "$0")
 # Default path (root dir)
 if [ -z $1 ]; then TARGET_DIR=${ROOT_DIR}; else TARGET_DIR=$1; fi
 
+# set mode action
+if [ -z $2 ]; then ACTION='TEST'; else ACTION=$2; fi
+
+# Remove folder if exist and run in train mode
+if [ -d "$TARGET_DIR" ] && [ "$ACTION" == "TRAIN" ]; then rm -Rf $TARGET_DIR/data; fi
+
 # N-Gram Language Model Order
-if [ -z $2 ]; then NGRAM_ORDER=2; else NGRAM_ORDER=$2; fi
+if [ -z $3 ]; then NGRAM_ORDER=2; else NGRAM_ORDER=$3; fi
 # ==========================================================================================================
 
 
@@ -213,9 +225,12 @@ export LIBLBFGS=${KALDI_ROOT}/tools/liblbfgs-1.10 && export LD_LIBRARY_PATH=${LD
 
 # Final Evaluation
 ############################################################################################################
-echo "Computing CER ..." 1>&2
-score.sh --wip $WIP --lmw $ASF ${TARGET_DIR}/data/test/hmm/graph/words.txt "ark:gzip -c -d ${TARGET_DIR}/data/lat.gz |" ${TARGET_DIR}/data/test/text ${TARGET_DIR}/data/predicts 2>${TARGET_DIR}/data/log
-echo -e "\nGenerating file of predicts: predicts_t" 1>&2
-int2sym.pl -f 2- ${TARGET_DIR}/data/test/hmm/graph/words.txt ${TARGET_DIR}/data/predicts > ${TARGET_DIR}/data/predicts_t
+[ "$ACTION" == "TRAIN" ] ||
+{
+  echo "Computing CER ..." 1>&2
+  score.sh --wip $WIP --lmw $ASF ${TARGET_DIR}/data/test/hmm/graph/words.txt "ark:gzip -c -d ${TARGET_DIR}/data/lat.gz |" ${TARGET_DIR}/data/test/text ${TARGET_DIR}/data/predicts 2>${TARGET_DIR}/data/log
+  echo -e "\nGenerating file of predicts: predicts_t" 1>&2
+  int2sym.pl -f 2- ${TARGET_DIR}/data/test/hmm/graph/words.txt ${TARGET_DIR}/data/predicts > ${TARGET_DIR}/data/predicts_t
+}
 ############################################################################################################
 

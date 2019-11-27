@@ -19,7 +19,7 @@ class Dataset():
         self.min_text_len = min_text_len
 
         self.partitions = {"train": [], "valid": [], "test": []}
-        self.size = dict()
+        self.size = {"train": 0, "valid": 0, "test": 0, "total": 0}
 
     def read_lines(self, maxlen):
         """Read sentences from dataset and preprocess"""
@@ -34,29 +34,53 @@ class Dataset():
             # standardize sentences
             lines = [pp.text_standardize(x) for x in lines]
 
-            # generate ngrams from senteces and shuffle
-            ngrams = [y for x in lines for y in pp.generate_ngram_sentences(x)]
-            np.random.shuffle(ngrams)
+            # generate ngrams from senteces
+            ngrams = [pp.generate_ngram_sentences(x) for x in lines]
 
-            # ignore duplicate items and ngrams with more punctuation percent
-            ngrams = list(set([x for x in ngrams if self.check_text(x)]))
+            # add random ngrams into valid data and test data.
+            # finally, add last ngrams + original lines into train data
+            for i, ngram in enumerate(ngrams):
+                y = sorted([x for x in ngram if self.check_text(x)], key=len)
 
-            # get 10% random ngrams into valid data
-            arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.1))
-            self.partitions['valid'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+                if len(y) > 2:
+                    factor = int(len(y) * 0.1)
+                    arange = np.random.choice(np.arange(int(len(y) * 0.25), int(len(y) * 0.75)), factor)
+                    self.partitions['valid'].extend([y.pop(i) for i in sorted(arange, reverse=True)])
 
-            # get 1% random ngrams into valid data
-            arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.01))
-            self.partitions['test'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+                if len(y) > 1:
+                    arange = np.random.choice(np.arange(int(len(y) * 0.25), int(len(y) * 0.75)), 1)
+                    self.partitions['test'].extend([y.pop(i) for i in sorted(arange, reverse=True)])
 
-            # get original lines and last ngrams into train data
-            self.partitions['train'] = lines + ngrams
-            np.random.shuffle(self.partitions['train'])
+                self.partitions['train'].extend(y + [lines[i]])
 
-        self.size['train'] = len(self.partitions['train'])
-        self.size['valid'] = len(self.partitions['valid'])
-        self.size['test'] = len(self.partitions['test'])
-        self.size['total'] = self.size['train'] + self.size['valid'] + self.size['test']
+            for pt in self.partitions.keys():
+                self.partitions[pt] = list(set(self.partitions[pt]))
+                self.size[pt] = len(self.partitions[pt])
+                self.size['total'] += self.size[pt]
+
+            # # generate ngrams from senteces and shuffle
+            # ngrams = [y for x in lines for y in pp.generate_ngram_sentences(x)]
+            # np.random.shuffle(ngrams)
+
+            # # ignore duplicate items and ngrams with more punctuation percent
+            # ngrams = list(set([x for x in ngrams if self.check_text(x)]))
+
+            # # get 10% random ngrams into valid data
+            # arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.1))
+            # self.partitions['valid'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+
+            # # get 1% random ngrams into valid data
+            # arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.01))
+            # self.partitions['test'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
+
+            # # get original lines and last ngrams into train data
+            # self.partitions['train'] = lines + ngrams
+            # np.random.shuffle(self.partitions['train'])
+
+        # self.size['train'] = len(self.partitions['train'])
+        # self.size['valid'] = len(self.partitions['valid'])
+        # self.size['test'] = len(self.partitions['test'])
+        # self.size['total'] = self.size['train'] + self.size['valid'] + self.size['test']
 
     def check_text(self, text):
         """Make sure text has more characters instead of punctuation marks"""
@@ -64,7 +88,7 @@ class Dataset():
         x = text.translate(str.maketrans("", "", string.punctuation))
         x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
 
-        return len(x) > 2 and len(x) > len(text) * 0.5
+        return len(x) > 1 and len(x) > len(text) * 0.5
 
     def _bea2019(self):
         """BEA2019 dataset reader"""

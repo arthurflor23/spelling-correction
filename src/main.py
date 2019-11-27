@@ -111,15 +111,11 @@ if __name__ == "__main__":
                               predict=args.test)
 
         if args.mode in ['kaldi', 'similarity', 'norvig', 'symspell']:
-            lm = LanguageModel(mode=args.mode, source=source_path, N=args.N)
+            lm = LanguageModel(mode=args.mode, source=source_path, output=output_path, N=args.N)
 
             if args.train:
                 if args.mode == "kaldi":
-                    print("\n##########################################\n")
-                    print("You'll have to work hard for this option.\n")
-                    print("See some instructions in the ``src/tool/statistical.py`` file (kaldi function section)")
-                    print("and also in the ``src/tool/lib/kaldi-srilm-script.sh`` file. \n☘️ ☘️ ☘️")
-                    print("\n##########################################\n")
+                    lm.autocorrect(sentences=None, train=args.train)
                 else:
                     corpus = lm.create_corpus(sentences=dtgen.dataset['train']['gt'])
 

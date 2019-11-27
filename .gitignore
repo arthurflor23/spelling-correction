@@ -3,7 +3,10 @@
 /data/
 /output/
 /tensorboard/
-/src/tool/lib/kaldi/
+
+/src/lib/kaldi/
+*.zip
+*.tar.gz
 
 # Hidden files
 .vscode
