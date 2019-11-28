@@ -16,36 +16,25 @@ class DataGenerator():
         self.size = dict()
         self.steps = dict()
         self.index = dict()
-
         self.dataset = reader.read_from_txt(source)
-        self._prepare_dataset()
-
-        self.one_hot_process = True
-        self.noise_process = not bool(max(self.dataset['train']['dt']))
-
-        # increase `iterations` parameter by 3 if there is noise process in the train data
-        if self.noise_process:
-            max_prob, iterations = pp.add_noise.__defaults__
-            pp.add_noise.__defaults__ = (max_prob, iterations + 3)
-
-    def _prepare_dataset(self):
-        """Prepare (text standardize and full fill) dataset up"""
 
         for pt in self.partitions:
             # text standardize to avoid erros
             self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
             self.dataset[pt]['gt'] = [pp.text_standardize(x) for x in self.dataset[pt]['gt']]
 
-            # full fill process to make up batch_size and steps
-            while len(self.dataset[pt]['gt']) % self.batch_size:
-                i = np.random.choice(np.arange(0, len(self.dataset[pt]['gt'])), 1)[0]
-
-                self.dataset[pt]['dt'].append(self.dataset[pt]['dt'][i])
-                self.dataset[pt]['gt'].append(self.dataset[pt]['gt'][i])
-
+            # set size and setps
             self.size[pt] = len(self.dataset[pt]['gt'])
-            self.steps[pt] = max(1, self.size[pt] // self.batch_size)
+            self.steps[pt] = int(np.ceil(self.size[pt] / self.batch_size))
             self.index[pt] = 0
+
+        self.one_hot_process = True
+        self.noise_process = not bool(max(self.dataset['train']['dt']))
+
+        # increase `iterations` parameter if there is noise process in the train data
+        if self.noise_process:
+            max_prob, iterations = pp.add_noise.__defaults__
+            pp.add_noise.__defaults__ = (max_prob, iterations + 3)
 
     def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False):
         """Prepare inputs to feed the model"""
@@ -75,7 +64,7 @@ class DataGenerator():
 
             index = self.index['train']
             until = self.index['train'] + self.batch_size
-            self.index['train'] += self.batch_size
+            self.index['train'] = until
 
             targets = self.dataset['train']['gt'][index:until]
             inputs = targets if self.noise_process else self.dataset['train']['dt'][index:until]
@@ -96,7 +85,7 @@ class DataGenerator():
 
             index = self.index['valid']
             until = self.index['valid'] + self.batch_size
-            self.index['valid'] += self.batch_size
+            self.index['valid'] = until
 
             inputs = self.dataset['valid']['dt'][index:until]
             targets = self.dataset['valid']['gt'][index:until]
@@ -117,7 +106,7 @@ class DataGenerator():
 
             index = self.index['test']
             until = self.index['test'] + self.batch_size
-            self.index['test'] += self.batch_size
+            self.index['test'] = until
 
             inputs = self.dataset['test']['dt'][index:until]
 

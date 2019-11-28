@@ -40,7 +40,7 @@ if __name__ == "__main__":
     parser.add_argument("--test", action="store_true", default=False)
 
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--N", type=int, default=2)
     args = parser.parse_args()
 
@@ -146,9 +146,9 @@ if __name__ == "__main__":
         else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(dtgen.tokenizer, num_layers=4, units=1024, d_model=128, num_heads=8, dropout=0.1)
+                model = Transformer(dtgen.tokenizer, num_layers=4, units=512, d_model=128, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=1024, dropout=0.2)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=512, dropout=0.2)
 
             # set parameter `learning_rate` to customize or get default value
             model.compile(learning_rate=0.001)

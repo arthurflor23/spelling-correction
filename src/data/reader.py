@@ -58,37 +58,13 @@ class Dataset():
                 self.size[pt] = len(self.partitions[pt])
                 self.size['total'] += self.size[pt]
 
-            # # generate ngrams from senteces and shuffle
-            # ngrams = [y for x in lines for y in pp.generate_ngram_sentences(x)]
-            # np.random.shuffle(ngrams)
-
-            # # ignore duplicate items and ngrams with more punctuation percent
-            # ngrams = list(set([x for x in ngrams if self.check_text(x)]))
-
-            # # get 10% random ngrams into valid data
-            # arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.1))
-            # self.partitions['valid'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
-
-            # # get 1% random ngrams into valid data
-            # arange = np.random.choice(np.arange(0, len(ngrams) - 1), int(len(ngrams) * 0.01))
-            # self.partitions['test'] = [ngrams.pop(i) for i in sorted(arange, reverse=True)]
-
-            # # get original lines and last ngrams into train data
-            # self.partitions['train'] = lines + ngrams
-            # np.random.shuffle(self.partitions['train'])
-
-        # self.size['train'] = len(self.partitions['train'])
-        # self.size['valid'] = len(self.partitions['valid'])
-        # self.size['test'] = len(self.partitions['test'])
-        # self.size['total'] = self.size['train'] + self.size['valid'] + self.size['test']
-
     def check_text(self, text):
         """Make sure text has more characters instead of punctuation marks"""
 
         x = text.translate(str.maketrans("", "", string.punctuation))
         x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
 
-        return len(x) > 1 and len(x) > len(text) * 0.5
+        return len(x) > 4 and len(x) > len(text) * 0.6
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
@@ -178,7 +154,7 @@ class Dataset():
         ptdir = os.path.join(basedir, "largeWriterIndependentTextLineRecognitionTask")
         lines, images = [], []
 
-        for x in ['trainset.txt', 'validationset1.txt', 'validationset2.txt', 'testset.txt']:
+        for x in ['trainset.txt', 'validationset1.txt', 'testset.txt']:
             images.extend(open(os.path.join(ptdir, x)).read().splitlines())
 
         for item in files:

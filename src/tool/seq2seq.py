@@ -90,14 +90,14 @@ class Seq2SeqAttention():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=1e-8,
-                patience=20,
+                patience=40,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=1e-8,
                 factor=0.2,
-                patience=10,
+                patience=20,
                 verbose=verbose)
         ]
 

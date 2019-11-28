@@ -107,14 +107,14 @@ class Transformer():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=1e-8,
-                patience=20,
+                patience=40,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=1e-8,
                 factor=0.2,
-                patience=12,
+                patience=20,
                 verbose=verbose)
         ]
 
@@ -373,14 +373,6 @@ class Transformer():
         return predicts
 
     @staticmethod
-    def accuracy(y_true, y_pred):
-        """Accuracy function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
-
-        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
-        accuracy = tf.metrics.SparseCategoricalAccuracy()(y_true, y_pred)
-        return accuracy
-
-    @staticmethod
     def loss_func(y_true, y_pred):
         """Loss function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
 
@@ -389,6 +381,14 @@ class Transformer():
         mask = tf.cast(tf.not_equal(y_true, 0), dtype="float32")
         loss = tf.multiply(loss, mask)
         return tf.reduce_mean(loss)
+
+    @staticmethod
+    def accuracy(y_true, y_pred):
+        """Accuracy function with SparseCategoryCrossentropy and mask to filter out padded tokens"""
+
+        y_true = tf.reshape(y_true, shape=(-1, MAXLENGH))
+        accuracy = tf.metrics.SparseCategoricalAccuracy()(y_true, y_pred)
+        return accuracy
 
     @staticmethod
     def create_look_ahead_mask(x):
