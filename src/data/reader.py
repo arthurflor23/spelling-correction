@@ -1,7 +1,6 @@
 """Dataset reader and process"""
 
 import os
-import re
 import html
 import string
 import numpy as np
@@ -13,11 +12,9 @@ from data import preproc as pp
 
 class Dataset():
 
-    def __init__(self, source, names, min_text_len=5):
+    def __init__(self, source, names):
         self.source = source
         self.names = names
-        self.min_text_len = min_text_len
-
         self.partitions = {"train": [], "valid": [], "test": []}
         self.size = {"train": 0, "valid": 0, "test": 0, "total": 0}
 
@@ -31,40 +28,49 @@ class Dataset():
             # split sentences by max length
             lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
 
-            # standardize sentences
-            lines = [pp.text_standardize(x) for x in lines]
-
             # generate ngrams from senteces
             ngrams = [pp.generate_ngram_sentences(x) for x in lines]
 
-            # add random ngrams into valid data and test data.
-            # finally, add last ngrams + original lines into train data
+            # standardize sentences
+            ngrams = [[pp.text_standardize(y) for y in x] for x in ngrams]
+
+            # add random ngrams into valid data and test data; finally, add last ngrams
             for i, ngram in enumerate(ngrams):
                 y = sorted([x for x in ngram if self.check_text(x)], key=len)
+                y_length = len(y)
 
-                if len(y) > 2:
-                    factor = int(len(y) * 0.1)
-                    arange = np.random.choice(np.arange(int(len(y) * 0.25), int(len(y) * 0.75)), factor)
-                    self.partitions['valid'].extend([y.pop(i) for i in sorted(arange, reverse=True)])
+                # valid factor: 10% and test factor: 5%
+                valid_factor = int(np.round(y_length * 0.1))
+                test_factor = int(np.round(y_length * 0.05))
 
-                if len(y) > 1:
-                    arange = np.random.choice(np.arange(int(len(y) * 0.25), int(len(y) * 0.75)), 1)
-                    self.partitions['test'].extend([y.pop(i) for i in sorted(arange, reverse=True)])
+                # create and random choice indexes between range length
+                arange = np.arange(int(y_length * 0.4), int(y_length * 0.6))
+                valid_choices = sorted(np.random.choice(arange, valid_factor), reverse=True)
+                test_choices = sorted(np.random.choice(arange, test_factor), reverse=True)
 
-                self.partitions['train'].extend(y + [lines[i]])
+                self.partitions['test'].extend([y.pop(i) for i in test_choices])
+                self.partitions['valid'].extend([y.pop(i) for i in valid_choices])
+                self.partitions['train'].extend(y)
 
             for pt in self.partitions.keys():
-                self.partitions[pt] = list(set(self.partitions[pt]))
+                np.random.seed(1234)
+                np.random.shuffle(self.partitions[pt])
+
                 self.size[pt] = len(self.partitions[pt])
                 self.size['total'] += self.size[pt]
 
     def check_text(self, text):
         """Make sure text has more characters instead of punctuation marks"""
 
-        x = text.translate(str.maketrans("", "", string.punctuation))
-        x = re.compile(r'[^\S\n]+', re.UNICODE).sub(" ", x.strip())
+        no_punc = text.translate(str.maketrans("", "", string.punctuation)).strip()
+        strip_punc = text.strip(string.punctuation).strip()
 
-        return len(x) > 4 and len(x) > len(text) * 0.6
+        if len(text) == 0 or len(strip_punc) == 0 or len(no_punc) == 0:
+            return False
+
+        punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
+
+        return len(no_punc) > 1 and punc_percent < 0.1
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
@@ -95,7 +101,7 @@ class Dataset():
             text = open(os.path.join(transdir, item)).read().splitlines()[0]
             text = html.unescape(text).replace("<gap/>", "")
 
-            if len(text) > self.min_text_len and os.path.splitext(item)[0] in images:
+            if os.path.splitext(item)[0] in images:
                 lines.append(text)
 
         return list(set(lines))
@@ -127,13 +133,11 @@ class Dataset():
         for m2_file in m2_list:
             if "2010" in m2_file and ".en" in m2_file:
                 with open(os.path.join(basedir, m2_file)) as f:
-                    lines_en = [line for line in f if len(line) > self.min_text_len]
-                    lines_en = list(set(lines_en))[::-1]
+                    lines_en = list(set([line for line in f]))[::-1]
 
             elif "2009" in m2_file and ".fr" in m2_file:
                 with open(os.path.join(basedir, m2_file)) as f:
-                    lines_fr = [line for line in f if len(line) > self.min_text_len]
-                    lines_fr = list(set(lines_fr))[::-1]
+                    lines_fr = list(set([line for line in f]))[::-1]
 
         # English and french will be 1% samples.
         lines_en = lines_en[:int(len(lines_en) * 0.01)]
@@ -165,9 +169,7 @@ class Dataset():
 
             if splitted[1] == "ok" and splitted[0] in images:
                 text = " ".join(splitted[8::]).replace("|", " ")
-
-                if len(text) > self.min_text_len:
-                    lines.append(text)
+                lines.append(text)
 
         return list(set(lines))
 
@@ -181,9 +183,7 @@ class Dataset():
             for page_tag in xml_file:
                 for _, line_tag in enumerate(page_tag.iter("Line")):
                     text = " ".join(html.unescape(line_tag.attrib['Value']).split())
-
-                    if len(text) > self.min_text_len:
-                        lines.append(text)
+                    lines.append(text)
 
             return lines
 
@@ -218,7 +218,7 @@ class Dataset():
             splitted = item.split()
             splitted[1] = splitted[1].replace("-", "").replace("|", " ")
 
-            if len(splitted[1]) > self.min_text_len and splitted[0] in images:
+            if splitted[0] in images:
                 lines.append(splitted[1])
 
         return list(set(lines))
@@ -242,9 +242,10 @@ class Dataset():
             splitted[1] = splitted[1].replace("s_mi", "-").replace("s_qo", ":")
             splitted[1] = splitted[1].replace("s_sq", ";").replace("s_et", "V")
             splitted[1] = splitted[1].replace("s_bl", "(").replace("s_br", ")")
-            splitted[1] = splitted[1].replace("s_qt", "'").replace("s_", "")
+            splitted[1] = splitted[1].replace("s_qt", "'").replace("s_GW", "")
+            splitted[1] = splitted[1].replace("s_", "")
 
-            if len(splitted[1]) > self.min_text_len and splitted[0] in images:
+            if splitted[0] in images:
                 lines.append(splitted[1])
 
         return list(set(lines))

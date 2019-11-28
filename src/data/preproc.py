@@ -13,38 +13,42 @@ DeepSpell based text cleaning process.
     Medium: https://machinelearnings.co/deep-spelling-9ffef96a24f6#.2c9pu8nlm
     Github: https://github.com/MajorTal/DeepSpell
 """
-NORMALIZE_WHITESPACE_REGEX = re.compile(r'[^\S\n]+', re.UNICODE)
+
 RE_DASH_FILTER = re.compile(r'[\-\˗\֊\‐\‑\‒\–\—\⁻\₋\−\﹣\－]', re.UNICODE)
-RE_APOSTROPHE_FILTER = re.compile(r'&#39;|[ʼ՚＇‘’‛❛❜ߴߵ`‵´ˊˋ{}{}{}{}{}{}{}{}{}]'.format(chr(768), chr(769),
-                                                                                      chr(832), chr(833),
-                                                                                      chr(2387), chr(5151),
-                                                                                      chr(5152), chr(65344),
-                                                                                      chr(8242)), re.UNICODE)
+RE_APOSTROPHE_FILTER = re.compile(r'&#39;|[ʼ՚＇‘’‛❛❜ߴߵ`‵´ˊˋ{}{}{}{}{}{}{}{}{}]'.format(
+    chr(768), chr(769), chr(832), chr(833), chr(2387),
+    chr(5151), chr(5152), chr(65344), chr(8242)), re.UNICODE)
 RE_RESERVED_CHAR_FILTER = re.compile(r'[¶¤«»]', re.UNICODE)
 RE_LEFT_PARENTH_FILTER = re.compile(r'[\(\[\{\⁽\₍\❨\❪\﹙\（]', re.UNICODE)
 RE_RIGHT_PARENTH_FILTER = re.compile(r'[\)\]\}\⁾\₎\❩\❫\﹚\）]', re.UNICODE)
 RE_BASIC_CLEANER = re.compile(r'[^\w\s{}]'.format(re.escape(string.punctuation)), re.UNICODE)
 
+LEFT_PUNCTUATION_FILTER = """!%&),.:;<=>?@\\]^_`|}~"""
+RIGHT_PUNCTUATION_FILTER = """"(/<=>@[\\^_`{|~"""
+NORMALIZE_WHITESPACE_REGEX = re.compile(r'[^\S\n]+', re.UNICODE)
 
-def text_standardize(txt):
+
+def text_standardize(text):
     """Organize/add spaces around punctuation marks"""
 
-    if txt is None:
+    if text is None:
         return ""
 
-    txt = html.unescape(txt).replace("\\n", "").replace("\\t", "")
+    text = html.unescape(text).replace("\\n", "").replace("\\t", "")
 
-    txt = RE_RESERVED_CHAR_FILTER.sub("", txt)
-    txt = RE_DASH_FILTER.sub("-", txt)
-    txt = RE_APOSTROPHE_FILTER.sub("'", txt)
-    txt = RE_LEFT_PARENTH_FILTER.sub("(", txt)
-    txt = RE_RIGHT_PARENTH_FILTER.sub(")", txt)
-    txt = RE_BASIC_CLEANER.sub("", txt)
+    text = RE_RESERVED_CHAR_FILTER.sub("", text)
+    text = RE_DASH_FILTER.sub("-", text)
+    text = RE_APOSTROPHE_FILTER.sub("'", text)
+    text = RE_LEFT_PARENTH_FILTER.sub("(", text)
+    text = RE_RIGHT_PARENTH_FILTER.sub(")", text)
+    text = RE_BASIC_CLEANER.sub("", text)
 
-    txt = txt.translate(str.maketrans({c: f" {c} " for c in string.punctuation}))
-    txt = NORMALIZE_WHITESPACE_REGEX.sub(" ", txt.strip())
+    text = text.lstrip(LEFT_PUNCTUATION_FILTER)
+    text = text.rstrip(RIGHT_PUNCTUATION_FILTER)
+    text = text.translate(str.maketrans({c: f" {c} " for c in string.punctuation}))
+    text = NORMALIZE_WHITESPACE_REGEX.sub(" ", text.strip())
 
-    return txt
+    return text
 
 
 def split_by_max_length(sentence, max_text_length=128):
@@ -93,7 +97,7 @@ def generate_ngram_sentences(sentence):
         support_text = ""
 
         for x in range(y, len(tokens)):
-            if y == 0 and x == len(tokens) - 1:
+            if y == 0 and x == len(tokens):
                 continue
 
             if len(tokens[x]) <= 2 and tokens[x] != tokens[-1]:
