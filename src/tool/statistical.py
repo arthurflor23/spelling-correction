@@ -41,7 +41,7 @@ class LanguageModel():
         self.dictionary_path = os.path.join(os.path.dirname(corpus_path), "dictionary.txt")
         self.corpus = " ".join(open(corpus_path).read().splitlines()).lower()
 
-    def _kaldi(self, sentences, train=False):
+    def _kaldi(self, sentences, predict=True):
         """
         Kaldi Speech Recognition Toolkit with SRI Language Modeling Toolkit.
 
@@ -73,7 +73,7 @@ class LanguageModel():
             URL: http://www.speech.sri.com/projects/srilm/
         """
 
-        option = "TRAIN" if train else "TEST"
+        option = "TEST" if predict else "TRAIN"
 
         if os.system(f"./lib/kaldi-decode-script.sh {self.output} {option} {self.N}") != 0:
             print("\n##########################################\n")
@@ -82,14 +82,14 @@ class LanguageModel():
             print("and also in the ``src/lib/kaldi-decode-script.sh`` file. \n☘️ ☘️ ☘️")
             print("\n##########################################\n")
 
-        if not train:
+        if predict:
             predicts = open(os.path.join(self.output, "data", "predicts_t")).read().splitlines()
 
             for i, line in enumerate(predicts):
                 tokens = line.split()
                 predicts[i] = "".join(tokens[1:]).replace("<space>", " ").strip()
 
-        return predicts
+            return predicts
 
     def _similarity(self, sentences):
         """

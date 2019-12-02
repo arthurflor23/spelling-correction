@@ -6,12 +6,15 @@ Tool to metrics calculation through data and label (string and string).
 import editdistance
 
 
-def ocr_metrics(predict, ground_truth):
+def ocr_metrics(predicts, ground_truth):
     """Calculate Character Error Rate (CER), Word Error Rate (WER) and Sequence Error Rate (SER)"""
+
+    if len(predicts) == 0 or len(ground_truth) == 0:
+        return (1, 1, 1)
 
     cer, wer, ser = [], [], []
 
-    for (pd, gt) in zip(predict, ground_truth):
+    for (pd, gt) in zip(predicts, ground_truth):
         pd_cer, gt_cer = list(pd.lower()), list(gt.lower())
         dist = editdistance.eval(pd_cer, gt_cer)
         cer.append(dist / (max(len(pd_cer), len(gt_cer))))

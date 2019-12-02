@@ -70,7 +70,7 @@ if __name__ == "__main__":
         valid_noised = pp.add_noise(dataset.partitions['valid'], max_text_length)
         test_noised = pp.add_noise(dataset.partitions['test'], max_text_length)
 
-        current_metric = ev.ocr_metrics(test_noised, dataset.partitions['test'])
+        curr_valid_rates = ev.ocr_metrics(valid_noised, dataset.partitions['valid'])
 
         info = "\n".join([
             f"####",
@@ -80,9 +80,10 @@ if __name__ == "__main__":
             f"#### Train:      {dataset.size['train']}",
             f"#### Validation: {dataset.size['valid']}",
             f"#### Test:       {dataset.size['test']}\n",
-            f"#### Current Error Rate:",
-            f"#### Test CER: {current_metric[0]:.8f}",
-            f"#### Test WER: {current_metric[1]:.8f}\n"
+            f"#### Validation Error Rate:",
+            f"#### CER: {curr_valid_rates[0]:.8f}",
+            f"#### WER: {curr_valid_rates[1]:.8f}",
+            f"#### SER: {curr_valid_rates[2]:.8f}\n"
         ])
 
         print(info, f"\n{args.source} transformed dataset is saving...")
@@ -115,7 +116,7 @@ if __name__ == "__main__":
 
             if args.train:
                 if args.mode == "kaldi":
-                    lm.autocorrect(sentences=None, train=args.train)
+                    lm.autocorrect(sentences=None, predict=args.test)
                 else:
                     corpus = lm.create_corpus(sentences=dtgen.dataset['train']['gt'])
 
@@ -127,7 +128,10 @@ if __name__ == "__main__":
                     lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
                 start_time = time.time()
+
                 predicts = lm.autocorrect(sentences=dtgen.dataset['test']['dt'])
+                predicts = [pp.text_standardize(x) for x in predicts]
+
                 total_time = time.time() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
@@ -200,9 +204,10 @@ if __name__ == "__main__":
 
             elif args.test:
                 start_time = time.time()
-                predicts = model.predict(x=dtgen.next_test_batch(),
-                                         steps=dtgen.steps['test'],
-                                         verbose=1)
+
+                predicts = model.predict(x=dtgen.next_test_batch(), steps=dtgen.steps['test'], verbose=1)
+                predicts = [pp.text_standardize(x) for x in predicts]
+
                 total_time = time.time() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
