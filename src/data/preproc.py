@@ -115,7 +115,7 @@ def generate_ngram_sentences(sentence):
     return ngrams
 
 
-def add_noise(x, max_text_length, max_prob=0.8, iterations=9):
+def add_noise(x, max_text_length, max_prob=1.0, iterations=11):
     """Generate some artificial spelling mistakes in the sentences"""
 
     assert(1 <= iterations)

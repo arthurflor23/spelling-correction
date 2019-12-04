@@ -181,7 +181,7 @@ if __name__ == "__main__":
 
                 time_epoch = (total_time / len(accuracy))
                 total_item = (dtgen.size['train'] + dtgen.size['valid'])
-                best_epoch_index = val_accuracy.index(max(val_accuracy))
+                best_epoch_index = val_loss.index(min(val_loss))
 
                 t_corpus = "\n".join([
                     f"Total train sentences:      {dtgen.size['train']}",

@@ -292,12 +292,10 @@ class Seq2SeqAttention():
         attn_layer = Attention(use_scale=False, name="attention_layer")
 
         attn_out = attn_layer([decoder_out, encoder_out])
-        decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
         # Normalization layer
         norm_layer = LayerNormalization(name="normalization")
-
-        decoder_concat_input = norm_layer(decoder_concat_input)
+        decoder_concat_input = norm_layer(Concatenate(axis=-1)([decoder_out, attn_out]))
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -309,7 +307,7 @@ class Seq2SeqAttention():
         optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5, epsilon=1e-8)
 
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
-        self.model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=['accuracy'])
+        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=['accuracy'])
 
         """ Inference model """
 
@@ -330,10 +328,9 @@ class Seq2SeqAttention():
 
         # Attention layer
         attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
-        decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Normalization layer
-        decoder_inf_concat = norm_layer(decoder_inf_concat)
+        decoder_inf_concat = norm_layer(Concatenate(axis=-1)([decoder_inf_out, attn_inf_out]))
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
@@ -361,24 +358,21 @@ class Seq2SeqAttention():
                                          dropout=self.dropout), name="encoder_bgru")
 
         encoder_out, state_h, state_c = encoder_bgru(encoder_inputs)
-        encoder_states = Concatenate(axis=-1)([state_h, state_c])
 
         # Set up the decoder GRU, using `encoder_states` as initial state.
         decoder_gru = GRU(self.units * 2, return_sequences=True, return_state=True,
                           dropout=self.dropout, name="decoder_gru")
 
-        decoder_out, _ = decoder_gru(decoder_inputs, initial_state=encoder_states)
+        decoder_out, _ = decoder_gru(decoder_inputs, initial_state=Concatenate(axis=-1)([state_h, state_c]))
 
         # Attention layer
         attn_layer = AdditiveAttention(use_scale=False, name="attention_layer")
 
         attn_out = attn_layer([decoder_out, encoder_out])
-        decoder_concat_input = Concatenate(axis=-1)([decoder_out, attn_out])
 
         # Normalization layer
         norm_layer = LayerNormalization(name="normalization")
-
-        decoder_concat_input = norm_layer(decoder_concat_input)
+        decoder_concat_input = norm_layer(Concatenate(axis=-1)([decoder_out, attn_out]))
 
         # Dense layer
         dense = Dense(self.tokenizer.vocab_size, activation="softmax", name="softmax_layer")
@@ -390,7 +384,7 @@ class Seq2SeqAttention():
         optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5, epsilon=1e-8)
 
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
-        self.model.compile(optimizer=optimizer, loss="categorical_crossentropy", metrics=['accuracy'])
+        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=['accuracy'])
 
         """ Inference model """
 
@@ -408,10 +402,9 @@ class Seq2SeqAttention():
 
         # Attention layer
         attn_inf_out = attn_layer([decoder_inf_out, encoder_inf_states])
-        decoder_inf_concat = Concatenate(axis=-1)([decoder_inf_out, attn_inf_out])
 
         # Normalization layer
-        decoder_inf_concat = norm_layer(decoder_inf_concat)
+        decoder_inf_concat = norm_layer(Concatenate(axis=-1)([decoder_inf_out, attn_inf_out]))
 
         # Dense layer
         decoder_inf_pred = dense_time_distributed(decoder_inf_concat)
@@ -419,3 +412,9 @@ class Seq2SeqAttention():
         # Decoder model
         self.decoder = Model(inputs=[encoder_inf_states, decoder_init_states, decoder_inf_inputs],
                              outputs=[decoder_inf_pred, decoder_inf_states])
+
+    @staticmethod
+    def loss_func(y_true, y_pred):
+        """Loss function with CategoryCrossentropy and label smoothing"""
+
+        return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1, reduction="none")(y_true, y_pred)

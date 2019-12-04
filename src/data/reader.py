@@ -28,49 +28,69 @@ class Dataset():
             # split sentences by max length
             lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
 
-            # generate ngrams from senteces
-            ngrams = [pp.generate_ngram_sentences(x) for x in lines]
+            # generate ngrams from sentences
+            lines_ngram = [pp.generate_ngram_sentences(x) for x in lines]
 
             # standardize sentences
-            ngrams = [[pp.text_standardize(y) for y in x] for x in ngrams]
+            lines_ngram = [[pp.text_standardize(y) for y in x] for x in lines_ngram]
+
+            # remove duplicate items from matrix
+            ngrams, track = [], []
+
+            for sub in lines_ngram:
+                ngrams.append([])
+
+                for item in sub:
+                    if item in track:
+                        continue
+
+                    track.append(item)
+                    ngrams[-1].append(item)
 
             # add random ngrams into valid data and test data; finally, add last ngrams
             for i, ngram in enumerate(ngrams):
                 y = sorted([x for x in ngram if self.check_text(x)], key=len)
-                y_length = len(y)
+                length = len(y)
 
-                # valid factor: 10% and test factor: 5%
-                valid_factor = int(np.round(y_length * 0.1))
-                test_factor = int(np.round(y_length * 0.05))
+                if length == 0:
+                    continue
 
-                # create and random choice indexes between range length
-                arange = np.arange(int(y_length * 0.4), int(y_length * 0.6))
-                valid_choices = sorted(np.random.choice(arange, valid_factor), reverse=True)
-                test_choices = sorted(np.random.choice(arange, test_factor), reverse=True)
+                # create arange with middle indexes of the y array
+                arr = np.arange(int(round(length * 0.4)), int(round(length * 0.6)))
 
-                self.partitions['test'].extend([y.pop(i) for i in test_choices])
-                self.partitions['valid'].extend([y.pop(i) for i in valid_choices])
+                # random indexes between range length (valid factor: 10%)
+                indexes = np.random.choice(arr, int(round(length * 0.1)))
+                self.partitions['valid'].extend([y.pop(i) for i in sorted(indexes, reverse=True)])
+
+                # **important**
+                # the test partition will also be trained, but with other random errors.
+                # this will allow you to remove them and enter your own test data.
+                # =======================================================================
+                # random indexes between range length (test factor: 5%)
+                indexes = np.random.choice(arr, int(round(length * 0.05)))
+                self.partitions['test'].extend([y[i] for i in sorted(indexes, reverse=True)])
+
+                # add the last items to train
                 self.partitions['train'].extend(y)
 
-            for pt in self.partitions.keys():
-                np.random.seed(1234)
-                np.random.shuffle(self.partitions[pt])
+        for pt in self.partitions.keys():
+            np.random.shuffle(self.partitions[pt])
 
-                self.size[pt] = len(self.partitions[pt])
-                self.size['total'] += self.size[pt]
+            self.size[pt] += len(self.partitions[pt])
+            self.size['total'] += self.size[pt]
 
     def check_text(self, text):
         """Make sure text has more characters instead of punctuation marks"""
 
-        no_punc = text.translate(str.maketrans("", "", string.punctuation)).strip()
         strip_punc = text.strip(string.punctuation).strip()
+        no_punc = text.translate(str.maketrans("", "", string.punctuation)).strip()
 
         if len(text) == 0 or len(strip_punc) == 0 or len(no_punc) == 0:
             return False
 
         punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
 
-        return len(no_punc) > 1 and punc_percent < 0.1
+        return len(no_punc) >= 2 and punc_percent <= 0.1
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
@@ -82,7 +102,7 @@ class Dataset():
         for m2_file in m2_list:
             lines.extend(read_from_m2(os.path.join(basedir, m2_file)))
 
-        return list(set(lines))
+        return lines
 
     def _bentham(self):
         """Bentham dataset reader"""
@@ -104,21 +124,21 @@ class Dataset():
             if os.path.splitext(item)[0] in images:
                 lines.append(text)
 
-        return list(set(lines))
+        return lines
 
     def _conll13(self):
         """CONLL13 dataset reader"""
 
         m2_file = os.path.join(self.source, "conll13", "revised", "data", "official-preprocessed.m2")
 
-        return list(set(read_from_m2(m2_file)))
+        return read_from_m2(m2_file)
 
     def _conll14(self):
         """CONLL14 dataset reader"""
 
         m2_file = os.path.join(self.source, "conll14", "alt", "official-2014.combined-withalt.m2")
 
-        return list(set(read_from_m2(m2_file)))
+        return read_from_m2(m2_file)
 
     def _google(self):
         """
@@ -142,12 +162,8 @@ class Dataset():
         # English and french will be 1% samples.
         lines_en = lines_en[:int(len(lines_en) * 0.01)]
         lines_fr = lines_fr[:int(len(lines_fr) * 0.01)]
-        lines = lines_en + lines_fr
 
-        del lines_en, lines_fr
-        np.random.shuffle(lines)
-
-        return lines
+        return (lines_en + lines_fr)
 
     def _iam(self):
         """IAM dataset reader"""
@@ -171,7 +187,7 @@ class Dataset():
                 text = " ".join(splitted[8::]).replace("|", " ")
                 lines.append(text)
 
-        return list(set(lines))
+        return lines
 
     def _rimes(self):
         """Rimes dataset reader"""
@@ -193,7 +209,7 @@ class Dataset():
         for f in ['training_2011.xml', 'eval_2011_annotated.xml']:
             lines.extend(read_from_xml(os.path.join(basedir, f)))
 
-        return list(set(lines))
+        return lines
 
     def _saintgall(self):
         """Saint Gall dataset reader"""
@@ -221,7 +237,7 @@ class Dataset():
             if splitted[0] in images:
                 lines.append(splitted[1])
 
-        return list(set(lines))
+        return lines
 
     def _washington(self):
         """Washington dataset reader"""
@@ -242,13 +258,13 @@ class Dataset():
             splitted[1] = splitted[1].replace("s_mi", "-").replace("s_qo", ":")
             splitted[1] = splitted[1].replace("s_sq", ";").replace("s_et", "V")
             splitted[1] = splitted[1].replace("s_bl", "(").replace("s_br", ")")
-            splitted[1] = splitted[1].replace("s_qt", "'").replace("s_GW", "")
+            splitted[1] = splitted[1].replace("s_qt", "'").replace("s_GW", "G.W.")
             splitted[1] = splitted[1].replace("s_", "")
 
             if splitted[0] in images:
                 lines.append(splitted[1])
 
-        return list(set(lines))
+        return lines
 
 
 def read_from_txt(file_name):

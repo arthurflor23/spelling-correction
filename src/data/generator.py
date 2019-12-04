@@ -29,12 +29,7 @@ class DataGenerator():
             self.index[pt] = 0
 
         self.one_hot_process = True
-        self.noise_process = not bool(max(self.dataset['train']['dt']))
-
-        # increase `iterations` parameter if there is noise process in the train data
-        if self.noise_process:
-            max_prob, iterations = pp.add_noise.__defaults__
-            pp.add_noise.__defaults__ = (max_prob, iterations + 3)
+        self.noise_process = not bool(max(self.dataset['train']['dt'], default=['']))
 
     def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False):
         """Prepare inputs to feed the model"""
@@ -53,7 +48,7 @@ class DataGenerator():
             if self.one_hot_process:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
 
-        return np.array(n_sen)
+        return np.asarray(n_sen, dtype=np.uint16)
 
     def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
@@ -73,7 +68,6 @@ class DataGenerator():
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
-            # x, y and sample_weight
             yield ([inputs, decoder_inputs], targets, [])
 
     def next_valid_batch(self):
@@ -94,7 +88,6 @@ class DataGenerator():
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
-            # x, y and sample_weight
             yield ([inputs, decoder_inputs], targets, [])
 
     def next_test_batch(self):
@@ -102,6 +95,7 @@ class DataGenerator():
 
         while True:
             if self.index['test'] >= self.size['test']:
+                self.index['test'] = 0
                 break
 
             index = self.index['test']
@@ -140,7 +134,7 @@ class Tokenizer():
             index = self.UNK if index == -1 else index
             encoded.append(index)
 
-        return np.array(encoded)
+        return np.asarray(encoded)
 
     def decode(self, text):
         """Decode vector to text"""
@@ -150,20 +144,20 @@ class Tokenizer():
     def encode_one_hot(self, vector):
         """Encode vector to one-hot"""
 
-        encoded = np.zeros((len(vector), self.vocab_size))
+        encoded = np.zeros((len(vector), self.vocab_size), dtype=bool)
 
         for i in range(len(vector)):
             try:
-                encoded[i][int(vector[i])] = 1.0
+                encoded[i][int(vector[i])] = 1
             except KeyError:
-                encoded[i][int(self.UNK)] = 1.0
+                encoded[i][int(self.UNK)] = 1
 
-        return np.array(encoded)
+        return encoded
 
     def decode_one_hot(self, one_hot):
         """Decode one-hot to vector"""
 
-        return np.argmax(one_hot, axis=1)
+        return np.argmax(one_hot, axis=1, dtype=np.uint16)
 
     def remove_tokens(self, text):
         """Remove tokens (PAD, SOS, EOS) from text"""
