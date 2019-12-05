@@ -125,13 +125,13 @@ export LIBLBFGS=${KALDI_ROOT}/tools/liblbfgs-1.10 && export LD_LIBRARY_PATH=${LD
 ############################################################################################################
 [ -f ${TARGET_DIR}/data/train/text ] ||
 {
+	echo "Processing training transcripts into Kaldi format ..." 1>&2
 	[ -d ${TARGET_DIR}/data/train/ ] || mkdir -p ${TARGET_DIR}/data/train/
 	awk -v idf="${TARGET_DIR}/$TRAIN_ID_LST" 'BEGIN{while (getline < idf > 0) IDs[$1]=""} {if ($1 in IDs) print}' ${TARGET_DIR}/$GT_FILE > ${TARGET_DIR}/data/train/text
 }
 [ -f ${TARGET_DIR}/data/test/text ] ||
 {
-#  echo "Processing development transcripts into Kaldi format ..." 1>&2
-#  prepare_transc_cl.sh ${DEVEL_GT_DIR} ${EXT_GT_FILE} data/test PROC/ID-devel.lst
+	echo "Processing development transcripts into Kaldi format ..." 1>&2
 	[ -d ${TARGET_DIR}/data/test/ ] || mkdir -p ${TARGET_DIR}/data/test/
 	awk -v idf="${TARGET_DIR}/$DEVEL_ID_LST" 'BEGIN{while (getline < idf > 0) IDs[$1]=""} {if ($1 in IDs) print}' ${TARGET_DIR}/$GT_FILE > ${TARGET_DIR}/data/test/text
 }

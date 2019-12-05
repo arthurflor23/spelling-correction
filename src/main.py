@@ -41,7 +41,7 @@ if __name__ == "__main__":
 
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--N", type=int, default=2)
+    parser.add_argument("--N", type=int, default=3)
     args = parser.parse_args()
 
     raw_path = os.path.join("..", "raw")
@@ -64,22 +64,22 @@ if __name__ == "__main__":
         else:
             names = [args.source]
 
-        dataset = Dataset(source=raw_path, names=names)
-        dataset.read_lines(maxlen=max_text_length)
+        data = Dataset(source=raw_path, names=names)
+        data.read_lines(maxlen=max_text_length)
 
-        valid_noised = pp.add_noise(dataset.partitions['valid'], max_text_length)
-        test_noised = pp.add_noise(dataset.partitions['test'], max_text_length)
+        valid_noised = pp.add_noise(data.dataset['valid'], max_text_length)
+        test_noised = pp.add_noise(data.dataset['test'], max_text_length)
 
-        curr_valid_rates = ev.ocr_metrics(valid_noised, dataset.partitions['valid'])
+        curr_valid_rates = ev.ocr_metrics(valid_noised, data.dataset['valid'])
 
         info = "\n".join([
             f"####",
             f"#### {args.source} partitions (number of sentences)",
-            f"#### Total:      {dataset.size['total']}",
+            f"#### Total:      {data.size['total']}",
             f"####\n",
-            f"#### Train:      {dataset.size['train']}",
-            f"#### Validation: {dataset.size['valid']}",
-            f"#### Test:       {dataset.size['test']}\n",
+            f"#### Train:      {data.size['train']}",
+            f"#### Validation: {data.size['valid']}",
+            f"#### Test:       {data.size['test']}\n",
             f"#### Validation Error Rate:",
             f"#### CER: {curr_valid_rates[0]:.8f}",
             f"#### WER: {curr_valid_rates[1]:.8f}",
@@ -92,13 +92,13 @@ if __name__ == "__main__":
         with open(source_path, "w") as f:
             f.write(f"{info}\n\n")
 
-            for item in dataset.partitions['train']:
+            for item in data.dataset['train']:
                 f.write(f"TR_L {item}\n")
 
-            for item, noise in zip(dataset.partitions['valid'], valid_noised):
+            for item, noise in zip(data.dataset['valid'], valid_noised):
                 f.write(f"VA_L {item}\nVA_P {noise}\n")
 
-            for item, noise in zip(dataset.partitions['test'], test_noised):
+            for item, noise in zip(data.dataset['test'], test_noised):
                 f.write(f"TE_L {item}\nTE_P {noise}\n")
 
     else:
@@ -118,7 +118,9 @@ if __name__ == "__main__":
                 if args.mode == "kaldi":
                     lm.autocorrect(sentences=None, predict=args.test)
                 else:
-                    corpus = lm.create_corpus(sentences=dtgen.dataset['train']['gt'])
+                    corpus = lm.create_corpus(dtgen.dataset['train']['gt'] +
+                                              dtgen.dataset['valid']['gt'] +
+                                              dtgen.dataset['test']['gt'])
 
                     with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
                         lg.write(corpus)
@@ -137,7 +139,8 @@ if __name__ == "__main__":
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
                 new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'])
 
-                p_corpus, e_corpus = ev.report(dtgen, predicts, [old_metric, new_metric], total_time, plus=f"N: {args.N}\n")
+                p_corpus, e_corpus = ev.report(dtgen, predicts, [old_metric, new_metric], total_time,
+                                               plus=f"N: {args.N}\n")
 
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                     lg.write("\n".join(p_corpus))

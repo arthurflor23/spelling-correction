@@ -15,68 +15,91 @@ class Dataset():
     def __init__(self, source, names):
         self.source = source
         self.names = names
-        self.partitions = {"train": [], "valid": [], "test": []}
+        self.dataset = {"train": [], "valid": [], "test": []}
         self.size = {"train": 0, "valid": 0, "test": 0, "total": 0}
 
     def read_lines(self, maxlen):
         """Read sentences from dataset and preprocess"""
 
-        for dataset in self.names:
-            print(f"The {dataset} dataset will be transformed...")
-            lines = getattr(self, f"_{dataset}")()
+        for name in self.names:
+            print(f"The {name} dataset will be transformed...")
+            lines = getattr(self, f"_{name}")()
 
-            # split sentences by max length
+            # split sentences by max length and standardize it
             lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
+            lines = [pp.text_standardize(x) for x in lines]
 
-            # generate ngrams from sentences
-            lines_ngram = [pp.generate_ngram_sentences(x) for x in lines]
+            # generate multigrams and standardize it
+            multigrams = [pp.generate_multigrams(x) for x in lines]
+            multigrams = [[pp.text_standardize(y) for y in x] for x in multigrams]
 
-            # standardize sentences
-            lines_ngram = [[pp.text_standardize(y) for y in x] for x in lines_ngram]
+            # add multigrams into train data through `check_text()` and remove duplicate items
+            self.dataset['train'].extend(y for x in multigrams for y in x if self.check_text(y))
+            self.dataset['train'] = list(set(self.dataset['train']))
 
-            # remove duplicate items from matrix
-            ngrams, track = [], []
+            # add valid/test sentences into valid/test partitions
+            # =======================================================================
+            # **important**
+            # Test data is only the half of the valid partition.
+            # This will allow you to remove them and enter your own test data.
+            # =======================================================================
+            self.dataset['valid'].extend(lines)
+            self.dataset['test'].extend(lines[:len(lines) // 2])
 
-            for sub in lines_ngram:
-                ngrams.append([])
 
-                for item in sub:
-                    if item in track:
-                        continue
 
-                    track.append(item)
-                    ngrams[-1].append(item)
+            # # split sentences by max length and standardize it
+            # lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
+            # lines = [pp.text_standardize(x) for x in lines]
 
-            # add random ngrams into valid data and test data; finally, add last ngrams
-            for i, ngram in enumerate(ngrams):
-                y = sorted([x for x in ngram if self.check_text(x)], key=len)
-                length = len(y)
+            # # generate multigrams and standardize it
+            # multigrams = [pp.generate_multigrams(x) for x in lines]
+            # multigrams = [[pp.text_standardize(y) for y in x] for x in multigrams]
 
-                if length == 0:
-                    continue
+            # # remove duplicate items of the multigrams matrix
+            # ngrams, track = [], []
 
-                # create arange with middle indexes of the y array
-                arr = np.arange(int(round(length * 0.4)), int(round(length * 0.6)))
+            # for sub in multigrams:
+            #     ngrams.append([])
 
-                # random indexes between range length (valid factor: 10%)
-                indexes = np.random.choice(arr, int(round(length * 0.1)))
-                self.partitions['valid'].extend([y.pop(i) for i in sorted(indexes, reverse=True)])
+            #     for item in sub:
+            #         if item in track:
+            #             continue
 
-                # **important**
-                # the test partition will also be trained, but with other random errors.
-                # this will allow you to remove them and enter your own test data.
-                # =======================================================================
-                # random indexes between range length (test factor: 5%)
-                indexes = np.random.choice(arr, int(round(length * 0.05)))
-                self.partitions['test'].extend([y[i] for i in sorted(indexes, reverse=True)])
+            #         track.append(item)
+            #         ngrams[-1].append(item)
 
-                # add the last items to train
-                self.partitions['train'].extend(y)
+            # # add random ngrams into valid data and test data; finally, add last ngrams
+            # for i, ngram in enumerate(ngrams):
+            #     y = sorted([x for x in ngram if self.check_text(x)], key=len)
+            #     length = len(y)
 
-        for pt in self.partitions.keys():
-            np.random.shuffle(self.partitions[pt])
+            #     if length == 0:
+            #         continue
 
-            self.size[pt] += len(self.partitions[pt])
+            #     # create arange with middle indexes of the y array
+            #     arr = np.arange(int(round(length * 0.4)), int(round(length * 0.6)))
+
+            #     # random indexes between range length (valid factor: 10%)
+            #     indexes = np.random.choice(arr, int(round(length * 0.1)))
+            #     self.dataset['valid'].extend([y.pop(i) for i in sorted(indexes, reverse=True)])
+
+            #     # random indexes between range length (test factor: 5%)
+            #     # =======================================================================
+            #     # **important**
+            #     # Test data is only the 5% of the last sentences (also will be training).
+            #     # This will allow you to remove them and enter your own test data.
+            #     # =======================================================================
+            #     indexes = np.random.choice(arr, int(round(length * 0.05)))
+            #     self.dataset['test'].extend([y[i] for i in sorted(indexes, reverse=True)])
+
+            #     # add the last items to train
+            #     self.dataset['train'].extend(y)
+
+        for pt in self.dataset.keys():
+            # np.random.shuffle(self.dataset[pt])
+
+            self.size[pt] += len(self.dataset[pt])
             self.size['total'] += self.size[pt]
 
     def check_text(self, text):

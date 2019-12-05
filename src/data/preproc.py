@@ -77,9 +77,9 @@ def split_by_max_length(sentence, max_text_length=128):
     return new_n_sentences
 
 
-def generate_ngram_sentences(sentence):
+def generate_multigrams(sentence):
     """
-    Generate sentences combinations (like ngrams).
+    Generate all n-grams of the sentence.
     i.e.:
     original sentence: I like code .
         > sentence 1 : I like
@@ -97,7 +97,8 @@ def generate_ngram_sentences(sentence):
         support_text = ""
 
         for x in range(y, len(tokens)):
-            if y == 0 and x == len(tokens):
+            # if y == 0 and x == len(tokens):
+            if y == 0 and len(tokens) > 2 and x == len(tokens) - 1:
                 continue
 
             if len(tokens[x]) <= 2 and tokens[x] != tokens[-1]:
@@ -115,7 +116,7 @@ def generate_ngram_sentences(sentence):
     return ngrams
 
 
-def add_noise(x, max_text_length, max_prob=1.0, iterations=11):
+def add_noise(x, max_text_length, max_prob=1.0, iterations=8):
     """Generate some artificial spelling mistakes in the sentences"""
 
     assert(1 <= iterations)
