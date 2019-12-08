@@ -79,7 +79,7 @@ def split_by_max_length(sentence, max_text_length=128):
 
 def generate_multigrams(sentence):
     """
-    Generate all n-grams of the sentence.
+    Generate n-grams of the sentence.
     i.e.:
     original sentence: I like code .
         > sentence 1 : I like
@@ -90,15 +90,15 @@ def generate_multigrams(sentence):
     """
 
     tokens = sentence.split()
+    tk_length = len(tokens)
     ngrams = []
 
-    for y in range(len(tokens)):
+    for y in range(tk_length):
         new_sentence = True
         support_text = ""
 
-        for x in range(y, len(tokens)):
-            # if y == 0 and x == len(tokens):
-            if y == 0 and len(tokens) > 2 and x == len(tokens) - 1:
+        for x in range(y, tk_length):
+            if y == 0 and tk_length > 2 and x == (tk_length - 1):
                 continue
 
             if len(tokens[x]) <= 2 and tokens[x] != tokens[-1]:
@@ -116,17 +116,16 @@ def generate_multigrams(sentence):
     return ngrams
 
 
-def add_noise(x, max_text_length, max_prob=1.0, iterations=8):
+def add_noise(x, max_text_length, iterations=7):
     """Generate some artificial spelling mistakes in the sentences"""
 
-    assert(1 <= iterations)
-    assert(0.0 <= max_prob <= 1.0)
+    assert(iterations > 0)
 
     chars = list(" ." + string.digits + string.ascii_letters)
     sentences = x.copy()
 
     for i, s in enumerate(sentences):
-        prob = len(s) * (max_prob / max_text_length)
+        prob = len(s) * (1 / max_text_length)
 
         for _ in range(iterations):
             if len(s) <= 2:

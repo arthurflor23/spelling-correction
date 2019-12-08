@@ -32,7 +32,7 @@ from tool.transformer import Transformer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--source", type=str, default="all")
+    parser.add_argument("--source", type=str, default="bea2019")
     parser.add_argument("--transform", action="store_true", default=False)
     parser.add_argument("--mode", type=str, default="bahdanau")
 
@@ -55,16 +55,7 @@ if __name__ == "__main__":
     charset_special = """ÀÁÂÃÄÅÇÈÉÊËÌÍÎÏÑÒÓÔÕÖÙÚÛÜÝàáâãäåçèéêëìíîïñòóôõöùúûüý"""
 
     if args.transform:
-        names = next(os.walk(raw_path))[1]
-
-        if args.source == "all":
-            pass
-        elif args.source == "htr":
-            names = [x for x in names if x in ['bentham', 'iam', 'rimes', 'saintgall', 'washington']]
-        else:
-            names = [args.source]
-
-        data = Dataset(source=raw_path, names=names)
+        data = Dataset(source=os.path.join(raw_path, args.source))
         data.read_lines(maxlen=max_text_length)
 
         valid_noised = pp.add_noise(data.dataset['valid'], max_text_length)

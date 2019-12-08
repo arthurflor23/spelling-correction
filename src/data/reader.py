@@ -12,113 +12,76 @@ from data import preproc as pp
 
 class Dataset():
 
-    def __init__(self, source, names):
-        self.source = source
-        self.names = names
-        self.dataset = {"train": [], "valid": [], "test": []}
-        self.size = {"train": 0, "valid": 0, "test": 0, "total": 0}
+    def __init__(self, source):
+        self.source = os.path.splitext(source)[0]
+        self.partitions = ['train', 'valid', 'test']
+        self.dataset = dict()
+        self.size = {'total': 0}
+
+        for pt in self.partitions:
+            self.size[pt] = 0
 
     def read_lines(self, maxlen):
         """Read sentences from dataset and preprocess"""
 
-        for name in self.names:
-            print(f"The {name} dataset will be transformed...")
-            lines = getattr(self, f"_{name}")()
+        name = os.path.basename(self.source)
+        print(f"The {name} dataset will be transformed...")
 
+        self.dataset = getattr(self, f"_{name}")()
+        multigrams = dict()
+
+        if isinstance(self.dataset, list):
+            index = int(len(self.dataset) * 0.1)
+            _dataset = dict()
+
+            _dataset['train'] = self.dataset[index:-(index // 2)]
+            _dataset['valid'] = self.dataset[index:]
+            _dataset['test'] = self.dataset[:-(index // 2)]
+
+            self.dataset = _dataset
+            del _dataset
+
+        for pt in self.partitions:
             # split sentences by max length and standardize it
-            lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
-            lines = [pp.text_standardize(x) for x in lines]
+            self.dataset[pt] = [y for x in self.dataset[pt] for y in pp.split_by_max_length(x, maxlen)]
+
+            self.dataset[pt] = [pp.text_standardize(x) for x in self.dataset[pt]]
+            self.dataset[pt] = [x for x in self.dataset[pt] if self.check_text(x)]
 
             # generate multigrams and standardize it
-            multigrams = [pp.generate_multigrams(x) for x in lines]
-            multigrams = [[pp.text_standardize(y) for y in x] for x in multigrams]
+            _multigrams = [pp.generate_multigrams(x) for x in self.dataset[pt]]
 
-            # add multigrams into train data through `check_text()` and remove duplicate items
-            self.dataset['train'].extend(y for x in multigrams for y in x if self.check_text(y))
-            self.dataset['train'] = list(set(self.dataset['train']))
-
-            # add valid/test sentences into valid/test partitions
-            # =======================================================================
-            # **important**
-            # Test data is only the half of the valid partition.
-            # This will allow you to remove them and enter your own test data.
-            # =======================================================================
-            self.dataset['valid'].extend(lines)
-            self.dataset['test'].extend(lines[:len(lines) // 2])
-
-
-
-            # # split sentences by max length and standardize it
-            # lines = [y for x in lines for y in pp.split_by_max_length(x, maxlen)]
-            # lines = [pp.text_standardize(x) for x in lines]
-
-            # # generate multigrams and standardize it
-            # multigrams = [pp.generate_multigrams(x) for x in lines]
-            # multigrams = [[pp.text_standardize(y) for y in x] for x in multigrams]
-
-            # # remove duplicate items of the multigrams matrix
-            # ngrams, track = [], []
-
-            # for sub in multigrams:
-            #     ngrams.append([])
-
-            #     for item in sub:
-            #         if item in track:
-            #             continue
-
-            #         track.append(item)
-            #         ngrams[-1].append(item)
-
-            # # add random ngrams into valid data and test data; finally, add last ngrams
-            # for i, ngram in enumerate(ngrams):
-            #     y = sorted([x for x in ngram if self.check_text(x)], key=len)
-            #     length = len(y)
-
-            #     if length == 0:
-            #         continue
-
-            #     # create arange with middle indexes of the y array
-            #     arr = np.arange(int(round(length * 0.4)), int(round(length * 0.6)))
-
-            #     # random indexes between range length (valid factor: 10%)
-            #     indexes = np.random.choice(arr, int(round(length * 0.1)))
-            #     self.dataset['valid'].extend([y.pop(i) for i in sorted(indexes, reverse=True)])
-
-            #     # random indexes between range length (test factor: 5%)
-            #     # =======================================================================
-            #     # **important**
-            #     # Test data is only the 5% of the last sentences (also will be training).
-            #     # This will allow you to remove them and enter your own test data.
-            #     # =======================================================================
-            #     indexes = np.random.choice(arr, int(round(length * 0.05)))
-            #     self.dataset['test'].extend([y[i] for i in sorted(indexes, reverse=True)])
-
-            #     # add the last items to train
-            #     self.dataset['train'].extend(y)
-
-        for pt in self.dataset.keys():
-            # np.random.shuffle(self.dataset[pt])
+            multigrams[pt] = list(set([pp.text_standardize(y) for x in _multigrams for y in x]))
+            multigrams[pt] = [x for x in multigrams[pt] if self.check_text(x)]
 
             self.size[pt] += len(self.dataset[pt])
+            self.size['total'] += self.size[pt] + len(multigrams[pt])
+
+        # balance validation set (up to 10% of the dataset size)
+        for pt in self.partitions[:-1]:
+            missing_items = int(self.size['total'] * 0.1) - self.size['valid']
+
+            if missing_items <= 2:
+                break
+
+            i = np.random.choice(np.arange(0, len(multigrams[pt]) - 1), missing_items // 2)
+            self.dataset['valid'] += [multigrams[pt].pop(i) for i in sorted(i, reverse=True)]
+
+        # multigrams into train set
+        self.dataset['train'] += multigrams['train'] + multigrams['valid'] + multigrams['test']
+        self.size['total'] = 0
+
+        # update dataset partition sizes (shuffle is also applied)
+        for pt in self.partitions:
+            np.random.shuffle(self.dataset[pt])
+
+            self.size[pt] = len(self.dataset[pt])
             self.size['total'] += self.size[pt]
-
-    def check_text(self, text):
-        """Make sure text has more characters instead of punctuation marks"""
-
-        strip_punc = text.strip(string.punctuation).strip()
-        no_punc = text.translate(str.maketrans("", "", string.punctuation)).strip()
-
-        if len(text) == 0 or len(strip_punc) == 0 or len(no_punc) == 0:
-            return False
-
-        punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
-
-        return len(no_punc) >= 2 and punc_percent <= 0.1
 
     def _bea2019(self):
         """BEA2019 dataset reader"""
 
-        basedir = os.path.join(self.source, "bea2019", "m2")
+        basedir = os.path.join(self.source, "m2")
         m2_list = next(os.walk(basedir))[2]
         lines = []
 
@@ -130,36 +93,38 @@ class Dataset():
     def _bentham(self):
         """Bentham dataset reader"""
 
-        basedir = os.path.join(self.source, "bentham", "BenthamDatasetR0-GT")
-        transdir = os.path.join(basedir, "Transcriptions")
-        files = os.listdir(transdir)
+        source = os.path.join(self.source, "BenthamDatasetR0-GT")
+        pt_path = os.path.join(source, "Partitions")
 
-        ptdir = os.path.join(basedir, "Partitions")
-        lines, images = [], []
+        paths = {"train": open(os.path.join(pt_path, "TrainLines.lst")).read().splitlines(),
+                 "valid": open(os.path.join(pt_path, "ValidationLines.lst")).read().splitlines(),
+                 "test": open(os.path.join(pt_path, "TestLines.lst")).read().splitlines()}
 
-        for x in ['TrainLines.lst', 'ValidationLines.lst', 'TestLines.lst']:
-            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
+        transcriptions = os.path.join(source, "Transcriptions")
+        gt = os.listdir(transcriptions)
+        gt_dict, dataset = dict(), dict()
 
-        for item in files:
-            text = open(os.path.join(transdir, item)).read().splitlines()[0]
+        for index, x in enumerate(gt):
+            text = " ".join(open(os.path.join(transcriptions, x)).read().splitlines())
             text = html.unescape(text).replace("<gap/>", "")
+            gt_dict[os.path.splitext(x)[0]] = " ".join(text.split())
 
-            if os.path.splitext(item)[0] in images:
-                lines.append(text)
+        for i in self.partitions:
+            dataset[i] = [gt_dict[x] for x in paths[i]]
 
-        return lines
+        return dataset
 
     def _conll13(self):
         """CONLL13 dataset reader"""
 
-        m2_file = os.path.join(self.source, "conll13", "revised", "data", "official-preprocessed.m2")
+        m2_file = os.path.join(self.source, "revised", "data", "official-preprocessed.m2")
 
         return read_from_m2(m2_file)
 
     def _conll14(self):
         """CONLL14 dataset reader"""
 
-        m2_file = os.path.join(self.source, "conll14", "alt", "official-2014.combined-withalt.m2")
+        m2_file = os.path.join(self.source, "alt", "official-2014.combined-withalt.m2")
 
         return read_from_m2(m2_file)
 
@@ -169,7 +134,7 @@ class Dataset():
         In this project, the google dataset only get 1M data from English and French partitions.
         """
 
-        basedir = os.path.join(self.source, "google")
+        basedir = os.path.join(self.source)
         m2_list = next(os.walk(basedir))[2]
         lines_en, lines_fr = [], []
 
@@ -191,91 +156,104 @@ class Dataset():
     def _iam(self):
         """IAM dataset reader"""
 
-        basedir = os.path.join(self.source, "iam")
-        files = open(os.path.join(basedir, "ascii", "lines.txt")).read().splitlines()
+        pt_path = os.path.join(self.source, "largeWriterIndependentTextLineRecognitionTask")
 
-        ptdir = os.path.join(basedir, "largeWriterIndependentTextLineRecognitionTask")
-        lines, images = [], []
+        paths = {"train": open(os.path.join(pt_path, "trainset.txt")).read().splitlines(),
+                 "valid": open(os.path.join(pt_path, "validationset1.txt")).read().splitlines(),
+                 "test": open(os.path.join(pt_path, "testset.txt")).read().splitlines()}
 
-        for x in ['trainset.txt', 'validationset1.txt', 'testset.txt']:
-            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
+        lines = open(os.path.join(self.source, "ascii", "lines.txt")).read().splitlines()
+        gt_dict, dataset = dict(), dict()
 
-        for item in files:
-            if (not item or item[0] == "#"):
+        for line in lines:
+            if (not line or line[0] == "#"):
                 continue
 
-            splitted = item.split()
+            splitted = line.split()
 
-            if splitted[1] == "ok" and splitted[0] in images:
-                text = " ".join(splitted[8::]).replace("|", " ")
-                lines.append(text)
+            if splitted[1] == "ok":
+                gt_dict[splitted[0]] = " ".join(splitted[8::]).replace("|", " ")
 
-        return lines
+        for i in self.partitions:
+            dataset[i] = [gt_dict[x] for x in paths[i] if x in gt_dict.keys()]
+
+        return dataset
 
     def _rimes(self):
         """Rimes dataset reader"""
 
-        def read_from_xml(xml_file):
-            xml_file = ET.parse(xml_file).getroot()
-            lines = []
+        def generate(xml, paths, validation=False):
+            xml = ET.parse(os.path.join(self.source, xml)).getroot()
+            dt = []
 
-            for page_tag in xml_file:
-                for _, line_tag in enumerate(page_tag.iter("Line")):
-                    text = " ".join(html.unescape(line_tag.attrib['Value']).split())
-                    lines.append(text)
+            for page_tag in xml:
+                for i, line_tag in enumerate(page_tag.iter("Line")):
+                    text = html.unescape(line_tag.attrib['Value'])
+                    dt.append(" ".join(text.split()))
 
-            return lines
+            if validation:
+                index = int(len(dt) * 0.9)
+                paths['valid'] = dt[index:]
+                paths['train'] = dt[:index]
+            else:
+                paths['test'] = dt
 
-        basedir = os.path.join(self.source, "rimes")
-        lines = []
+        dataset, paths = dict(), dict()
+        generate("training_2011.xml", paths, validation=True)
+        generate("eval_2011_annotated.xml", paths, validation=False)
 
-        for f in ['training_2011.xml', 'eval_2011_annotated.xml']:
-            lines.extend(read_from_xml(os.path.join(basedir, f)))
+        for i in self.partitions:
+            dataset[i] = [x for x in paths[i]]
 
-        return lines
+        return dataset
 
     def _saintgall(self):
         """Saint Gall dataset reader"""
 
-        basedir = os.path.join(self.source, "saintgall")
-        files = open(os.path.join(basedir, "ground_truth", "transcription.txt")).read().splitlines()
+        pt_path = os.path.join(self.source, "sets")
 
-        ptdir = os.path.join(basedir, "sets")
-        lines, pages, images = [], [], []
+        paths = {"train": open(os.path.join(pt_path, "train.txt")).read().splitlines(),
+                 "valid": open(os.path.join(pt_path, "valid.txt")).read().splitlines(),
+                 "test": open(os.path.join(pt_path, "test.txt")).read().splitlines()}
 
-        for x in ['train.txt', 'valid.txt', 'test.txt']:
-            pages.extend(open(os.path.join(ptdir, x)).read().splitlines())
+        lines = open(os.path.join(self.source, "ground_truth", "transcription.txt")).read().splitlines()
+        gt_dict = dict()
 
-        for x in pages:
-            glob_filter = os.path.join(basedir, "data", "line_images_normalized", f"{x}*")
-            files_list = [x for x in glob(glob_filter, recursive=True)]
-
-            for y in files_list:
-                images.append(os.path.splitext(os.path.basename(y))[0])
-
-        for item in files:
-            splitted = item.split()
+        for line in lines:
+            splitted = line.split()
             splitted[1] = splitted[1].replace("-", "").replace("|", " ")
+            gt_dict[splitted[0]] = splitted[1]
 
-            if splitted[0] in images:
-                lines.append(splitted[1])
+        img_path = os.path.join(self.source, "data", "line_images_normalized")
+        dataset = dict()
 
-        return lines
+        for i in self.partitions:
+            dataset[i] = []
+
+            for line in paths[i]:
+                glob_filter = os.path.join(img_path, f"{line}*")
+                img_list = [x for x in glob(glob_filter, recursive=True)]
+
+                for line in img_list:
+                    line = os.path.splitext(os.path.basename(line))[0]
+                    dataset[i].append(gt_dict[line])
+
+        return dataset
 
     def _washington(self):
         """Washington dataset reader"""
 
-        basedir = os.path.join(self.source, "washington")
-        files = open(os.path.join(basedir, "ground_truth", "transcription.txt")).read().splitlines()
+        pt_path = os.path.join(self.source, "sets", "cv1")
 
-        ptdir = os.path.join(basedir, "sets", "cv1")
-        lines, images = [], []
+        paths = {"train": open(os.path.join(pt_path, "train.txt")).read().splitlines(),
+                 "valid": open(os.path.join(pt_path, "valid.txt")).read().splitlines(),
+                 "test": open(os.path.join(pt_path, "test.txt")).read().splitlines()}
 
-        for x in ['train.txt', 'valid.txt', 'test.txt']:
-            images.extend(open(os.path.join(ptdir, x)).read().splitlines())
+        lines = open(os.path.join(self.source, "ground_truth", "transcription.txt")).read().splitlines()
+        gt_dict, dataset = dict(), dict()
 
-        for item in files:
-            splitted = item.split()
+        for line in lines:
+            splitted = line.split()
             splitted[1] = splitted[1].replace("-", "").replace("|", " ")
             splitted[1] = splitted[1].replace("s_pt", ".").replace("s_cm", ",")
             splitted[1] = splitted[1].replace("s_mi", "-").replace("s_qo", ":")
@@ -283,11 +261,26 @@ class Dataset():
             splitted[1] = splitted[1].replace("s_bl", "(").replace("s_br", ")")
             splitted[1] = splitted[1].replace("s_qt", "'").replace("s_GW", "G.W.")
             splitted[1] = splitted[1].replace("s_", "")
+            gt_dict[splitted[0]] = splitted[1]
 
-            if splitted[0] in images:
-                lines.append(splitted[1])
+        for i in self.partitions:
+            dataset[i] = [gt_dict[i] for i in paths[i]]
 
-        return lines
+        return dataset
+
+    @staticmethod
+    def check_text(text):
+        """Make sure text has more characters instead of punctuation marks"""
+
+        strip_punc = text.strip(string.punctuation).strip()
+        no_punc = text.translate(str.maketrans("", "", string.punctuation)).strip()
+
+        if len(text) == 0 or len(strip_punc) == 0 or len(no_punc) == 0:
+            return False
+
+        punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
+
+        return len(no_punc) >= 2 and punc_percent <= 0.1
 
 
 def read_from_txt(file_name):
