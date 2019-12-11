@@ -33,13 +33,14 @@ class DataGenerator():
 
         # increase `iterations` parameter if there is noise process in the train data
         if self.noise_process:
-            iterations = pp.add_noise.__defaults__
-            pp.add_noise.__defaults__ = (iterations + 3)
+            ratio, iterations = pp.add_noise.__defaults__
+            pp.add_noise.__defaults__ = (ratio, iterations + 5)
 
     def prepare_sequence(self, sentences, sos=False, eos=False, add_noise=False):
         """Prepare inputs to feed the model"""
 
-        n_sen = sentences.copy()
+        n_sen = list(sentences).copy()
+
         sos = self.tokenizer.SOS_TK if sos else ""
         eos = self.tokenizer.EOS_TK if eos else ""
 

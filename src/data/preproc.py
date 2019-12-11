@@ -116,16 +116,17 @@ def generate_multigrams(sentence):
     return ngrams
 
 
-def add_noise(x, max_text_length, iterations=7):
+def add_noise(x, max_text_length, ratio=0.8, iterations=9):
     """Generate some artificial spelling mistakes in the sentences"""
 
+    assert(0 < ratio <= 1)
     assert(iterations > 0)
 
     chars = list(" ." + string.digits + string.ascii_letters)
     sentences = x.copy()
 
     for i, s in enumerate(sentences):
-        prob = len(s) * (1 / max_text_length)
+        prob = len(s) * (ratio / max_text_length)
 
         for _ in range(iterations):
             if len(s) <= 2:
