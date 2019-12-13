@@ -54,7 +54,7 @@ class DataGenerator():
             if self.one_hot_process:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
 
-        return np.asarray(n_sen, dtype=np.uint16)
+        return np.asarray(n_sen, dtype=np.int16)
 
     def next_train_batch(self):
         """Get the next batch from train partition (yield)"""
@@ -163,7 +163,7 @@ class Tokenizer():
     def decode_one_hot(self, one_hot):
         """Decode one-hot to vector"""
 
-        return np.argmax(one_hot, axis=1, dtype=np.uint16)
+        return np.argmax(one_hot, axis=1, dtype=np.int16)
 
     def remove_tokens(self, text):
         """Remove tokens (PAD, SOS, EOS) from text"""

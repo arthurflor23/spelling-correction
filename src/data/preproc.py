@@ -91,7 +91,7 @@ def generate_multigrams(sentence):
 
     tokens = sentence.split()
     tk_length = len(tokens)
-    ngrams = []
+    multigrams = []
 
     for y in range(tk_length):
         new_sentence = True
@@ -106,14 +106,14 @@ def generate_multigrams(sentence):
                 continue
 
             last = ""
-            if x > y and len(ngrams) > 0 and not new_sentence:
-                last = ngrams[-1]
+            if x > y and len(multigrams) > 0 and not new_sentence:
+                last = multigrams[-1]
 
-            ngrams.append(f"{last}{support_text} {tokens[x]}".strip())
+            multigrams.append(f"{last}{support_text} {tokens[x]}".strip())
             new_sentence = False
             support_text = ""
 
-    return ngrams
+    return multigrams
 
 
 def add_noise(x, max_text_length, ratio=0.8, iterations=9):
@@ -129,7 +129,7 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=9):
         prob = len(s) * (ratio / max_text_length)
 
         for _ in range(iterations):
-            if len(s) <= 2:
+            if len(s) <= 4:
                 continue
 
             if np.random.rand() <= prob:
@@ -146,6 +146,16 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=9):
                     s = s[:random_index] + np.random.choice(chars) + s[random_index + 1:]
 
             if np.random.rand() <= prob:
+                # Add a random character
+                random_index = np.random.randint(len(s))
+                s = s[:random_index] + np.random.choice(chars) + s[random_index:]
+
+            if np.random.rand() <= prob:
+                # Transpose 2 random characters
+                random_index = np.random.randint(len(s) - 1)
+                s = s[:random_index] + s[random_index + 1] + s[random_index] + s[random_index + 2:]
+
+            if np.random.rand() <= prob:
                 # Delete characters...
                 sentence = s
 
@@ -157,16 +167,6 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=9):
                     # by random characters
                     random_index = np.random.randint(len(s))
                     s = s[:random_index] + s[random_index + 1:]
-
-            if np.random.rand() <= prob:
-                # Add a random character
-                random_index = np.random.randint(len(s))
-                s = s[:random_index] + np.random.choice(chars) + s[random_index:]
-
-            if np.random.rand() <= prob:
-                # Transpose 2 random characters
-                random_index = np.random.randint(len(s) - 1)
-                s = s[:random_index] + s[random_index + 1] + s[random_index] + s[random_index + 2:]
 
         sentences[i] = text_standardize(s)
 
