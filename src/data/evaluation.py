@@ -40,8 +40,8 @@ def report(dtgen, new_dt, metrics, total_time, plus=""):
     e_corpus = "\n".join([
         f"Total test sentences: {dtgen.size['test']}",
         f"{plus}",
-        f"Total time:           {total_time:.8f} sec",
-        f"Time per item:        {(total_time / dtgen.size['test']):.8f} sec\n",
+        f"Total time:           {total_time}",
+        f"Time per item:        {total_time / dtgen.size['test']}\n",
         f"Metrics (before):",
         f"Character Error Rate: {metrics[0][0]:.8f}",
         f"Word Error Rate:      {metrics[0][1]:.8f}",

@@ -19,7 +19,7 @@ Provides options via the command line to perform project tasks.
 import argparse
 import os
 import string
-import time
+import datetime
 
 from data import preproc as pp, evaluation as ev
 from data.generator import DataGenerator
@@ -120,12 +120,12 @@ if __name__ == "__main__":
                 if args.mode != "kaldi":
                     lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
-                start_time = time.time()
+                start_time = datetime.datetime.now()
 
                 predicts = lm.autocorrect(sentences=dtgen.dataset['test']['dt'])
                 predicts = [pp.text_standardize(x) for x in predicts]
 
-                total_time = time.time() - start_time
+                total_time = datetime.datetime.now() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
                 new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'])
@@ -156,7 +156,8 @@ if __name__ == "__main__":
                 model.summary(output_path, "summary.txt")
                 callbacks = model.get_callbacks(logdir=output_path, checkpoint=target_path, verbose=1)
 
-                start_time = time.time()
+                start_time = datetime.datetime.now()
+
                 h = model.fit(x=dtgen.next_train_batch(),
                               epochs=args.epochs,
                               steps_per_epoch=dtgen.steps['train'],
@@ -165,7 +166,8 @@ if __name__ == "__main__":
                               callbacks=callbacks,
                               shuffle=True,
                               verbose=1)
-                total_time = time.time() - start_time
+
+                total_time = datetime.datetime.now() - start_time
 
                 loss = h.history['loss']
                 accuracy = h.history['accuracy']
@@ -173,7 +175,7 @@ if __name__ == "__main__":
                 val_loss = h.history['val_loss']
                 val_accuracy = h.history['val_accuracy']
 
-                time_epoch = (total_time / len(accuracy))
+                time_epoch = (total_time / len(loss))
                 total_item = (dtgen.size['train'] + dtgen.size['valid'])
                 best_epoch_index = val_loss.index(min(val_loss))
 
@@ -182,9 +184,9 @@ if __name__ == "__main__":
                     f"Total validation sentences: {dtgen.size['valid']}",
                     f"Batch:                      {dtgen.batch_size}\n",
                     f"Total epochs:               {len(accuracy)}",
-                    f"Total time:                 {(total_time / 60):.2f} min",
-                    f"Time per epoch:             {(time_epoch / 60):.2f} min",
-                    f"Time per item:              {(time_epoch / total_item):.8f} sec\n",
+                    f"Total time:                 {total_time}",
+                    f"Time per epoch:             {time_epoch}",
+                    f"Time per item:              {time_epoch / total_item}\n",
                     f"Best epoch                  {best_epoch_index + 1}",
                     f"Training loss:              {loss[best_epoch_index]:.8f}",
                     f"Training accuracy:          {accuracy[best_epoch_index]:.8f}\n",
@@ -197,12 +199,12 @@ if __name__ == "__main__":
                     print(t_corpus)
 
             elif args.test:
-                start_time = time.time()
+                start_time = datetime.datetime.now()
 
                 predicts = model.predict(x=dtgen.next_test_batch(), steps=dtgen.steps['test'], verbose=1)
                 predicts = [pp.text_standardize(x) for x in predicts]
 
-                total_time = time.time() - start_time
+                total_time = datetime.datetime.now() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
                 new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'])

@@ -96,7 +96,7 @@ class Seq2SeqAttention():
                 monitor=monitor,
                 min_delta=1e-8,
                 factor=0.2,
-                patience=15,
+                patience=10,
                 verbose=verbose)
         ]
 
