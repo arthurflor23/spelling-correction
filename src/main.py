@@ -148,7 +148,7 @@ if __name__ == "__main__":
             else:
                 model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=512, dropout=0.2)
 
-            # set parameter `learning_rate` to customize or get default value
+            # set `learning_rate` parameter or get architecture default value
             model.compile(learning_rate=0.001)
             model.load_checkpoint(target=target_path)
 
