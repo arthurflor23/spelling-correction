@@ -4,4 +4,4 @@ flake8==3.7.9
 ngram==3.3.2
 pyspellchecker==0.5.2
 symspellpy==6.3.9
-tensorflow==2.1.0-rc1
+tensorflow==2.1.0-rc2
