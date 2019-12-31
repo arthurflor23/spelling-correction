@@ -75,7 +75,7 @@ class Seq2SeqAttention():
                 append=True),
             TensorBoard(
                 log_dir=logdir,
-                histogram_freq=10,
+                histogram_freq=0,
                 profile_batch=0,
                 write_graph=True,
                 write_images=False,
