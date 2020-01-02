@@ -4,7 +4,7 @@ Tool to metrics calculation through data and label (string and string).
 """
 
 import editdistance
-
+import numpy as np
 
 def ocr_metrics(predicts, ground_truth):
     """Calculate Character Error Rate (CER), Word Error Rate (WER) and Sequence Error Rate (SER)"""
@@ -15,11 +15,13 @@ def ocr_metrics(predicts, ground_truth):
     cer, wer, ser = [], [], []
 
     for (pd, gt) in zip(predicts, ground_truth):
-        pd_cer, gt_cer = list(pd.lower()), list(gt.lower())
+        pd, gt = pd.lower(), gt.lower()
+
+        pd_cer, gt_cer = list(pd), list(gt)
         dist = editdistance.eval(pd_cer, gt_cer)
         cer.append(dist / (max(len(pd_cer), len(gt_cer))))
 
-        pd_wer, gt_wer = pd.lower().split(), gt.lower().split()
+        pd_wer, gt_wer = pd.split(), gt.split()
         dist = editdistance.eval(pd_wer, gt_wer)
         wer.append(dist / (max(len(pd_wer), len(gt_wer))))
 
@@ -27,35 +29,12 @@ def ocr_metrics(predicts, ground_truth):
         dist = editdistance.eval(pd_ser, gt_ser)
         ser.append(dist / (max(len(pd_ser), len(gt_ser))))
 
-    cer_f = sum(cer) / len(cer)
-    wer_f = sum(wer) / len(wer)
-    ser_f = sum(ser) / len(ser)
+    mean, std = np.mean(cer), np.std(cer)
+    no_outliers = [i for i in range(len(cer)) if (cer[i] > mean - 2 * std)]
+    no_outliers = [i for i in no_outliers if (cer[i] < mean + 2 * std)]
 
-    return (cer_f, wer_f, ser_f)
+    cer = [cer[i] for i in no_outliers]
+    wer = [wer[i] for i in no_outliers]
+    ser = [ser[i] for i in no_outliers]
 
-
-def report(dtgen, new_dt, metrics, total_time, plus=""):
-    """Calculate and organize metrics and predicts informations"""
-
-    e_corpus = "\n".join([
-        f"Total test sentences: {dtgen.size['test']}",
-        f"{plus}",
-        f"Total time:           {total_time}",
-        f"Time per item:        {total_time / dtgen.size['test']}\n",
-        f"Metrics (before):",
-        f"Character Error Rate: {metrics[0][0]:.8f}",
-        f"Word Error Rate:      {metrics[0][1]:.8f}",
-        f"Sequence Error Rate:  {metrics[0][2]:.8f}\n",
-        f"Metrics (after):",
-        f"Character Error Rate: {metrics[1][0]:.8f}",
-        f"Word Error Rate:      {metrics[1][1]:.8f}",
-        f"Sequence Error Rate:  {metrics[1][2]:.8f}"
-    ])
-
-    p_corpus = []
-    for i in range(dtgen.size['test']):
-        p_corpus.append(f"GT {dtgen.dataset['test']['gt'][i]}")
-        p_corpus.append(f"DT {dtgen.dataset['test']['dt'][i]}")
-        p_corpus.append(f"PD {new_dt[i]}\n")
-
-    return (p_corpus, e_corpus)
+    return (np.mean(cer), np.mean(wer), np.mean(ser))
