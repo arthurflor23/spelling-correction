@@ -93,7 +93,7 @@ class Transformer():
                 append=True),
             TensorBoard(
                 log_dir=logdir,
-                histogram_freq=0,
+                histogram_freq=10,
                 profile_batch=0,
                 write_graph=True,
                 write_images=False,

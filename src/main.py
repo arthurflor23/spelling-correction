@@ -234,7 +234,7 @@ if __name__ == "__main__":
                 total_time = datetime.datetime.now() - start_time
 
                 old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
-                new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'])
+                new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'], outliers=False)
 
                 p_corpus, e_corpus = report(dtgen, predicts, [old_metric, new_metric], total_time)
 
