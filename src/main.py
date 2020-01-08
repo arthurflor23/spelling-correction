@@ -88,7 +88,8 @@ if __name__ == "__main__":
         valid_noised = pp.add_noise(data.dataset['valid'], max_text_length)
         test_noised = pp.add_noise(data.dataset['test'], max_text_length)
 
-        curr_valid_rates = ev.ocr_metrics(valid_noised, data.dataset['valid'])
+        valid_metrics = ev.ocr_metrics(ground_truth=data.dataset['valid'], data=valid_noised)
+        test_metrics = ev.ocr_metrics(ground_truth=data.dataset['test'], data=test_noised)
 
         info = "\n".join([
             f"####",
@@ -99,9 +100,13 @@ if __name__ == "__main__":
             f"#### Validation: {data.size['valid']}",
             f"#### Test:       {data.size['test']}\n",
             f"#### Validation Error Rate:",
-            f"#### CER: {curr_valid_rates[0]:.8f}",
-            f"#### WER: {curr_valid_rates[1]:.8f}",
-            f"#### SER: {curr_valid_rates[2]:.8f}\n"
+            f"#### CER: {valid_metrics[0]:.8f}",
+            f"#### WER: {valid_metrics[1]:.8f}",
+            f"#### SER: {valid_metrics[2]:.8f}\n",
+            f"#### Test Error Rate:",
+            f"#### CER: {test_metrics[0]:.8f}",
+            f"#### WER: {test_metrics[1]:.8f}",
+            f"#### SER: {test_metrics[2]:.8f}\n"
         ])
 
         print(info, f"\n{args.source} transformed dataset is saving...")
@@ -154,11 +159,15 @@ if __name__ == "__main__":
 
                 total_time = datetime.datetime.now() - start_time
 
-                old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
-                new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'])
-                extra_info = f"N: {args.N}\n"
+                old_metric, new_metric = ev.ocr_metrics(ground_truth=dtgen.dataset['test']['gt'],
+                                                        data=dtgen.dataset['test']['dt'],
+                                                        predict=predicts)
 
-                p_corpus, e_corpus = report(dtgen, predicts, [old_metric, new_metric], total_time, plus=extra_info)
+                p_corpus, e_corpus = report(dtgen=dtgen,
+                                            predicts=predicts,
+                                            metrics=[old_metric, new_metric],
+                                            total_time=total_time,
+                                            plus=f"N: {args.N}\n")
 
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                     lg.write("\n".join(p_corpus))
@@ -233,10 +242,14 @@ if __name__ == "__main__":
 
                 total_time = datetime.datetime.now() - start_time
 
-                old_metric = ev.ocr_metrics(dtgen.dataset['test']['dt'], dtgen.dataset['test']['gt'])
-                new_metric = ev.ocr_metrics(predicts, dtgen.dataset['test']['gt'], outliers=False)
+                old_metric, new_metric = ev.ocr_metrics(ground_truth=dtgen.dataset['test']['gt'],
+                                                        data=dtgen.dataset['test']['dt'],
+                                                        predict=predicts)
 
-                p_corpus, e_corpus = report(dtgen, predicts, [old_metric, new_metric], total_time)
+                p_corpus, e_corpus = report(dtgen=dtgen,
+                                            predicts=predicts,
+                                            metrics=[old_metric, new_metric],
+                                            total_time=total_time)
 
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                     lg.write("\n".join(p_corpus))
