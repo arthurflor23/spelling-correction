@@ -2,7 +2,7 @@
 Language Model class.
 Create and read the corpus with the language model file.
 
-Statistical techniques for text correction:
+Statistical techniques for spelling correction:
     * N-gram with similarity.
     * Peter Norvig's method.
     * Symspell method.
@@ -159,7 +159,7 @@ class LanguageModel():
 
     def _symspell(self, sentences):
         """
-        SymSpell tool to text correction through Symmetric Delete spelling algorithm.
+        SymSpell tool to spelling correction through Symmetric Delete spelling algorithm.
 
         Reference:
             Author: Wolf Garbe <wolf.garbe@faroo.com>

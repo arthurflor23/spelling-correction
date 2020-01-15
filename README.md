@@ -1,11 +1,11 @@
-<img src="https://github.com/arthurflor23/text-correction/blob/master/doc/image/header.png?raw=true">
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/image/header.png?raw=true">
 
-A text corrector system implemented using the Statistical Language Model ([Ngram](https://github.com/gpoulter/python-ngram), [Pyspellchecker](https://github.com/barrust/pyspellchecker) and [SymSpell](https://github.com/mammothb/symspellpy)) and Neural Network ([Seq2Seq](https://towardsdatascience.com/seq2seq-model-in-tensorflow-ec0c557e560f) and [Transformer](https://www.tensorflow.org/tutorials/text/transformer)) with TensorFlow 2.0. This project supports several text datasets and uses a noise random function to create data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
+A spell corrector system implemented using the Statistical Language Model ([Ngram](https://github.com/gpoulter/python-ngram), [Pyspellchecker](https://github.com/barrust/pyspellchecker) and [SymSpell](https://github.com/mammothb/symspellpy)) and Neural Network ([Seq2Seq](https://towardsdatascience.com/seq2seq-model-in-tensorflow-ec0c557e560f) and [Transformer](https://www.tensorflow.org/tutorials/text/transformer)) with TensorFlow 2.0. This project supports several text datasets and uses a noise random function to create data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
 
 **Notes**:
 1. All **references** are commented in the code.
 2. Check out the presentation in the **doc** folder.
-3. For more information and demo run step by step (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
+3. For more information and demo run step by step (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/spelling-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
 
 ## Datasets supported
 
@@ -62,4 +62,4 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 ## Tutorial (Google Colab/Drive)
 
-A Jupyter Notebook is available to demo run (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/text-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
+A Jupyter Notebook is available to demo run (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/spelling-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.

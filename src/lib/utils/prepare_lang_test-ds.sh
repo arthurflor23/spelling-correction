@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-export LC_ALL=C.UTF-8
+export LC_ALL=en_US.UTF-8
 
 HERE=$(dirname "$0")
 export PATH=$HERE:$PATH
