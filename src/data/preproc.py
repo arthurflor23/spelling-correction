@@ -57,10 +57,10 @@ def split_by_max_length(sentence, max_text_length=128):
     if len(sentence) < max_text_length:
         return [sentence]
 
-    splitted = sentence.split()
+    split = sentence.split()
     new_n_sentences, text = [], []
 
-    for x in splitted:
+    for x in split:
         support_text = " ".join(text)
 
         if len(support_text) + len(x) < max_text_length:
