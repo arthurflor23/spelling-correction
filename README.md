@@ -1,6 +1,6 @@
 <img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/image/header.png?raw=true">
 
-A spell corrector system implemented using the Statistical Language Model ([Ngram](https://github.com/gpoulter/python-ngram), [Pyspellchecker](https://github.com/barrust/pyspellchecker) and [SymSpell](https://github.com/mammothb/symspellpy)) and Neural Network ([Seq2Seq](https://towardsdatascience.com/seq2seq-model-in-tensorflow-ec0c557e560f) and [Transformer](https://www.tensorflow.org/tutorials/text/transformer)) with TensorFlow 2.0. This project supports several text datasets and uses a noise random function to create data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
+A spell corrector system implemented using the Statistical Language Model ([Ngram](https://github.com/gpoulter/python-ngram), [Pyspellchecker](https://github.com/barrust/pyspellchecker) and [SymSpell](https://github.com/mammothb/symspellpy)) and Neural Network ([Seq2Seq](https://towardsdatascience.com/seq2seq-model-in-tensorflow-ec0c557e560f) and [Transformer](https://www.tensorflow.org/tutorials/text/transformer)) with TensorFlow 2.x. This project supports several text datasets and uses a noise random function to create data training (unlike Grammatical Error Correction (GEC) methodology). Don't worry, this is an automatic process in `transform` step and generator class.
 
 **Notes**:
 1. All **references** are commented in the code.
@@ -34,7 +34,7 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 * Ngram
 * Pyspellchecker
 * Symspellpy
-* TensorFlow 2.0
+* TensorFlow 2.x
 
 ## Command line arguments
 
