@@ -4,7 +4,6 @@
 /output/
 /tensorboard/
 
-/src/lib/kaldi/
 *.zip
 *.tar.gz
 
