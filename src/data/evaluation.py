@@ -3,11 +3,13 @@ Tool to metrics calculation through data and label (string and string).
  * Calculation from Optical Character Recognition (OCR) metrics with editdistance.
 """
 
+import string
+import unicodedata
 import editdistance
 import numpy as np
 
 
-def ocr_metrics(ground_truth, data, predict=None):
+def ocr_metrics(ground_truth, data, predict=None, norm_accentuation=False, norm_punctuation=False):
     """
     Calculate Character Error Rate (CER), Word Error Rate (WER) and Sequence Error Rate (SER).
         - if `ground_truth` and `data` parameters is entered, one metric will be returned (data);
@@ -22,6 +24,14 @@ def ocr_metrics(ground_truth, data, predict=None):
 
         for (gt, pd) in zip(ground_truth, arr):
             gt, pd = gt.lower(), pd.lower()
+
+            if norm_accentuation:
+                pd = unicodedata.normalize("NFKD", pd).encode("ASCII", "ignore").decode("ASCII")
+                gt = unicodedata.normalize("NFKD", gt).encode("ASCII", "ignore").decode("ASCII")
+
+            if norm_punctuation:
+                pd = pd.translate(str.maketrans("", "", string.punctuation))
+                gt = gt.translate(str.maketrans("", "", string.punctuation))
 
             gt_cer, pd_cer = list(gt), list(pd)
             dist = editdistance.eval(pd_cer, gt_cer)
