@@ -2,7 +2,6 @@
 
 import numpy as np
 from data import preproc as pp, reader
-from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 
 class DataGenerator():
@@ -19,6 +18,13 @@ class DataGenerator():
         self.dataset = reader.read_from_txt(source)
 
         for pt in self.partitions:
+            randomize = np.arange(len(self.dataset[pt]['gt']))
+            np.random.seed(42)
+            np.random.shuffle(randomize)
+
+            self.dataset[pt]['dt'] = np.asarray(self.dataset[pt]['dt'])[randomize]
+            self.dataset[pt]['gt'] = np.asarray(self.dataset[pt]['gt'])[randomize]
+
             # text standardize to avoid erros
             self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
             self.dataset[pt]['gt'] = [pp.text_standardize(x) for x in self.dataset[pt]['gt']]
@@ -49,7 +55,7 @@ class DataGenerator():
                 n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen)[0]
 
             n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
-            n_sen[i] = pad_sequences([n_sen[i]], maxlen=self.tokenizer.maxlen, padding="post")[0]
+            n_sen[i] = np.pad(n_sen[i], (0, self.tokenizer.maxlen - len(n_sen[i])))
 
             if self.one_hot_process:
                 n_sen[i] = self.tokenizer.encode_one_hot(n_sen[i])
