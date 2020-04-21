@@ -129,7 +129,7 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=4):
         prob = len(s) * (ratio / max_text_length)
 
         for _ in range(iterations):
-            if len(s) <= 4:
+            if len(s) <= 4 or np.random.rand() <= 0.2:
                 continue
 
             if np.random.rand() <= prob:
