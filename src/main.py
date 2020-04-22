@@ -5,7 +5,7 @@ Provides options via the command line to perform project tasks.
 * `--mode`: method to be used:
 
     `similarity`, `norvig`, `symspell`:
-        * `--N`: N gram or max edit distance (2 by default)
+        * `--N`: N gram or max edit distance (3 by default)
         * `--train`: create corpus files
         * `--test`: predict and evaluate sentences
 
@@ -134,23 +134,19 @@ if __name__ == "__main__":
                               max_text_length=max_text_length,
                               predict=args.test)
 
-        if args.mode in ['kaldi', 'similarity', 'norvig', 'symspell']:
+        if args.mode in ['similarity', 'norvig', 'symspell']:
             lm = LanguageModel(mode=args.mode, source=source_path, output=output_path, N=args.N)
 
             if args.train:
-                if args.mode == "kaldi":
-                    lm.autocorrect(sentences=None, predict=args.test)
-                else:
-                    corpus = lm.create_corpus(dtgen.dataset['train']['gt'] +
-                                              dtgen.dataset['valid']['gt'] +
-                                              dtgen.dataset['test']['gt'])
+                corpus = lm.create_corpus(dtgen.dataset['train']['gt'] +
+                                            dtgen.dataset['valid']['gt'] +
+                                            dtgen.dataset['test']['gt'])
 
-                    with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
-                        lg.write(corpus)
+                with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
+                    lg.write(corpus)
 
             elif args.test:
-                if args.mode != "kaldi":
-                    lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
+                lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
                 start_time = datetime.datetime.now()
 
