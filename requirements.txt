@@ -1,7 +1,5 @@
-autopep8==1.4.4
 editdistance==0.5.3
-flake8==3.7.9
 ngram==3.3.2
-pyspellchecker==0.5.3
+pyspellchecker==0.5.4
 symspellpy==6.5.2
-tensorflow==2.1.0
+tensorflow==2.2.0
