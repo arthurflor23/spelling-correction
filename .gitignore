@@ -4,12 +4,16 @@
 /output/
 /tensorboard/
 
-*.zip
-*.tar.gz
+/src/lib/kaldi
+/src/data/predicts/
 
 # Hidden files
 .vscode
 .directory
+
+# Compact files
+*.tar.gz
+*.zip
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
