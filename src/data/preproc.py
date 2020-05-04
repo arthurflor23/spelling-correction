@@ -78,27 +78,17 @@ def split_by_max_length(sentence, max_text_length=128):
 
 
 def generate_multigrams(sentence):
-    """
-    Generate n-grams of the sentence.
-    i.e.:
-    original sentence: I like code .
-        > sentence 1 : I like
-        > sentence 2 : I like code .
-        > sentence 3 : like
-        > sentence 4 : like code .
-        > sentence 5 : code .
-    """
+    """Generate n-grams of the sentence"""
 
-    tokens = sentence.split()
+    tokens, multigrams = sentence.split(), []
     tk_length = len(tokens)
-    multigrams = []
 
     for y in range(tk_length):
         new_sentence = True
         support_text = ""
 
         for x in range(y, tk_length):
-            if y == 0 and tk_length > 2 and x == (tk_length - 1):
+            if y == 0 and tk_length > 2 and x == tk_length:
                 continue
 
             if len(tokens[x]) <= 2 and tokens[x] != tokens[-1]:
@@ -116,13 +106,14 @@ def generate_multigrams(sentence):
     return multigrams
 
 
-def add_noise(x, max_text_length, ratio=0.8, iterations=4):
+def add_noise(x, max_text_length, ratio=1, iterations=4):
     """Generate some artificial spelling mistakes in the sentences"""
 
     assert(0 < ratio <= 1)
     assert(iterations > 0)
 
-    chars = list(" ." + string.digits + string.ascii_letters)
+    chars = list(" " + string.digits + string.ascii_letters)
+    punctuation = list(string.punctuation)
     sentences = x.copy()
 
     for i, s in enumerate(sentences):
@@ -136,14 +127,15 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=4):
                 # Replace characters...
                 sentence = s
 
-                if np.random.rand() <= 0.5:
+                if np.random.rand() <= 0.4:
                     # by accentuation
                     s = unicodedata.normalize("NFKD", s).encode("ASCII", "ignore").decode("ASCII")
 
                 if sentence == s:
                     # by random characters
                     random_index = np.random.randint(len(s))
-                    s = s[:random_index] + np.random.choice(chars) + s[random_index + 1:]
+                    arr = chars if s[random_index] in chars else punctuation
+                    s = s[:random_index] + np.random.choice(arr) + s[random_index + 1:]
 
             if np.random.rand() <= prob:
                 # Add a random character
@@ -159,7 +151,7 @@ def add_noise(x, max_text_length, ratio=0.8, iterations=4):
                 # Delete characters...
                 sentence = s
 
-                if np.random.rand() <= 0.5:
+                if np.random.rand() <= 0.4:
                     # by repeat characters
                     s = re.compile(r'(.)\1{1,}', re.IGNORECASE).sub(r'\1', s)
 

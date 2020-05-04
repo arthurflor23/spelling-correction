@@ -27,54 +27,27 @@ class Dataset():
         name = os.path.basename(self.source)
         print(f"The {name} dataset will be transformed...")
 
-        self.dataset = getattr(self, f"_{name}")()
-        multigrams = dict()
+        dataset = getattr(self, f"_{name}")()
 
-        if isinstance(self.dataset, list):
-            index = int(len(self.dataset) * 0.1)
-            _dataset = dict()
+        if not isinstance(self.dataset, list):
+            dataset = dataset['train'] + dataset['valid'] + dataset['test']
 
-            _dataset['train'] = self.dataset[index:-(index // 2)]
-            _dataset['valid'] = self.dataset[index:]
-            _dataset['test'] = self.dataset[:-(index // 2)]
+        dataset = [y for x in dataset for y in pp.generate_multigrams(x)]
+        dataset = [y for x in dataset for y in pp.split_by_max_length(x, maxlen)]
 
-            self.dataset = _dataset
-            del _dataset
+        dataset = [pp.text_standardize(x) for x in dataset]
+        dataset = [x for x in dataset if self.check_text(x)]
+
+        dataset = list(set(dataset))
+        np.random.shuffle(dataset)
+
+        index = int(len(dataset) * 0.1)
+        self.dataset['train'] = dataset[index:]
+        self.dataset['valid'] = dataset[:index]
+        self.dataset['test'] = dataset[:32]  # just a sample
+        del dataset
 
         for pt in self.partitions:
-            # split sentences by max length and standardize it
-            self.dataset[pt] = [y for x in self.dataset[pt] for y in pp.split_by_max_length(x, maxlen)]
-
-            self.dataset[pt] = [pp.text_standardize(x) for x in self.dataset[pt]]
-            self.dataset[pt] = [x for x in self.dataset[pt] if self.check_text(x)]
-
-            # generate multigrams and standardize it
-            _multigrams = [pp.generate_multigrams(x) for x in self.dataset[pt]]
-
-            multigrams[pt] = list(set([pp.text_standardize(y) for x in _multigrams for y in x]))
-            multigrams[pt] = [x for x in multigrams[pt] if self.check_text(x)]
-
-            self.size[pt] += len(self.dataset[pt])
-            self.size['total'] += self.size[pt] + len(multigrams[pt])
-
-        # balance validation set (up to 10% of the dataset size)
-        for pt in self.partitions[:-1]:
-            missing_items = int(self.size['total'] * 0.1) - self.size['valid']
-
-            if missing_items <= 2:
-                break
-
-            i = np.random.choice(np.arange(0, len(multigrams[pt]) - 1), missing_items // 2)
-            self.dataset['valid'] += [multigrams[pt].pop(i) for i in sorted(i, reverse=True)]
-
-        # multigrams into train set
-        self.dataset['train'] += multigrams['train'] + multigrams['valid'] + multigrams['test']
-        self.size['total'] = 0
-
-        # update dataset partition sizes (shuffle is also applied)
-        for pt in self.partitions:
-            np.random.shuffle(self.dataset[pt])
-
             self.size[pt] = len(self.dataset[pt])
             self.size['total'] += self.size[pt]
 
@@ -280,7 +253,7 @@ class Dataset():
 
         punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
 
-        return len(no_punc) >= 2 and punc_percent <= 0.1
+        return len(no_punc) > 2 and punc_percent <= 0.1
 
 
 def read_from_txt(file_name):
