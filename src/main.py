@@ -5,7 +5,7 @@ Provides options via the command line to perform project tasks.
 * `--mode`: method to be used:
 
     `similarity`, `norvig`, `symspell`:
-        * `--N`: N gram or max edit distance (3 by default)
+        * `--N`: N gram or max edit distance (2 by default)
         * `--train`: create corpus files
         * `--test`: predict and evaluate sentences
 
@@ -14,6 +14,9 @@ Provides options via the command line to perform project tasks.
         * `--test`: predict and evaluate sentences
         * `--epochs`: number of epochs
         * `--batch_size`: number of batches
+
+* `--norm_accentuation`: discard accentuation marks in the evaluation
+* `--norm_punctuation`: discard punctuation marks in the evaluation
 """
 
 import argparse
@@ -66,9 +69,12 @@ if __name__ == "__main__":
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--test", action="store_true", default=False)
 
+    parser.add_argument("--norm_accentuation", action="store_true", default=False)
+    parser.add_argument("--norm_punctuation", action="store_true", default=False)
+
     parser.add_argument("--epochs", type=int, default=1000)
     parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--N", type=int, default=3)
+    parser.add_argument("--N", type=int, default=2)
     args = parser.parse_args()
 
     raw_path = os.path.join("..", "raw")
@@ -89,24 +95,20 @@ if __name__ == "__main__":
         test_noised = pp.add_noise(data.dataset['test'], max_text_length)
 
         valid_metrics = ev.ocr_metrics(ground_truth=data.dataset['valid'], data=valid_noised)
-        test_metrics = ev.ocr_metrics(ground_truth=data.dataset['test'], data=test_noised)
 
         info = "\n".join([
             f"####",
             f"#### {args.source} partitions (number of sentences)",
+            f"####",
             f"#### Total:      {data.size['total']}",
-            f"####\n",
+            f"####",
             f"#### Train:      {data.size['train']}",
             f"#### Validation: {data.size['valid']}",
-            f"#### Test:       {data.size['test']}\n",
+            f"####\n",
             f"#### Validation Error Rate:",
             f"#### CER: {valid_metrics[0]:.8f}",
             f"#### WER: {valid_metrics[1]:.8f}",
-            f"#### SER: {valid_metrics[2]:.8f}\n",
-            f"#### Test Error Rate:",
-            f"#### CER: {test_metrics[0]:.8f}",
-            f"#### WER: {test_metrics[1]:.8f}",
-            f"#### SER: {test_metrics[2]:.8f}\n"
+            f"#### SER: {valid_metrics[2]:.8f}",
         ])
 
         print(info, f"\n{args.source} transformed dataset is saving...")
@@ -134,19 +136,23 @@ if __name__ == "__main__":
                               max_text_length=max_text_length,
                               predict=args.test)
 
-        if args.mode in ['similarity', 'norvig', 'symspell']:
-            lm = LanguageModel(mode=args.mode, source=source_path, output=output_path, N=args.N)
+        if args.mode in ['similarity', 'norvig', 'symspell', 'kaldi']:
+            lm = LanguageModel(mode=args.mode, output=output_path, N=args.N)
 
             if args.train:
-                corpus = lm.create_corpus(dtgen.dataset['train']['gt'] +
-                                            dtgen.dataset['valid']['gt'] +
-                                            dtgen.dataset['test']['gt'])
+                if args.mode == "kaldi":
+                    lm.autocorrect(sentences=None, predict=args.test)
+                else:
+                    corpus = lm.create_corpus(dtgen.dataset['train']['gt'] +
+                                              dtgen.dataset['valid']['gt'] +
+                                              dtgen.dataset['test']['gt'])
 
-                with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
-                    lg.write(corpus)
+                    with open(os.path.join(output_path, "corpus.txt"), "w") as lg:
+                        lg.write(corpus)
 
             elif args.test:
-                lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
+                if args.mode != "kaldi":
+                    lm.read_corpus(corpus_path=os.path.join(output_path, "corpus.txt"))
 
                 start_time = datetime.datetime.now()
 
@@ -240,17 +246,23 @@ if __name__ == "__main__":
 
                 old_metric, new_metric = ev.ocr_metrics(ground_truth=dtgen.dataset['test']['gt'],
                                                         data=dtgen.dataset['test']['dt'],
-                                                        predict=predicts)
+                                                        predict=predicts,
+                                                        norm_accentuation=args.norm_accentuation,
+                                                        norm_punctuation=args.norm_punctuation)
 
                 p_corpus, e_corpus = report(dtgen=dtgen,
                                             predicts=predicts,
                                             metrics=[old_metric, new_metric],
                                             total_time=total_time)
 
+                sufix = ("_norm" if args.norm_accentuation or args.norm_punctuation else "") + \
+                        ("_accentuation" if args.norm_accentuation else "") + \
+                        ("_punctuation" if args.norm_punctuation else "")
+
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                     lg.write("\n".join(p_corpus))
                     print("\n".join(p_corpus[:30]))
 
-                with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                with open(os.path.join(output_path, f"evaluate{sufix}.txt"), "w") as lg:
                     lg.write(e_corpus)
                     print(e_corpus)

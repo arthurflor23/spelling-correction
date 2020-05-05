@@ -2,6 +2,7 @@
 /raw/*
 /data/
 /output/
+/backup/
 /tensorboard/
 
 /src/lib/kaldi
