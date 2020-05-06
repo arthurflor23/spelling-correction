@@ -45,7 +45,7 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
   `similarity`, `norvig`, `symspell`:
 
-  - `--N`: N gram or max edit distance (2 by default)
+  - `--N`: N gram or max edit distance
 
   - `--train`: create corpus files
 
