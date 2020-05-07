@@ -5,7 +5,7 @@ Provides options via the command line to perform project tasks.
 * `--mode`: method to be used:
 
     `similarity`, `norvig`, `symspell`:
-        * `--N`: N gram or max edit distance (2 by default)
+        * `--N`: N gram or max edit distance
         * `--train`: create corpus files
         * `--test`: predict and evaluate sentences
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--norm_punctuation", action="store_true", default=False)
 
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--N", type=int, default=2)
     args = parser.parse_args()
 
@@ -182,11 +182,11 @@ if __name__ == "__main__":
         else:
             if args.mode == "transformer":
                 dtgen.one_hot_process = False
-                model = Transformer(dtgen.tokenizer, num_layers=4, units=512, d_model=128, num_heads=8, dropout=0.1)
+                model = Transformer(dtgen.tokenizer, num_layers=6, units=128, d_model=256, num_heads=8, dropout=0.1)
             else:
-                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=512, dropout=0.2)
+                model = Seq2SeqAttention(dtgen.tokenizer, args.mode, units=128, dropout=0.2)
 
-            # set `learning_rate` parameter or get architecture default value
+            # set `learning_rate` parameter or None for custom schedule learning
             model.compile(learning_rate=0.001)
             model.load_checkpoint(target=target_path)
 
