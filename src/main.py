@@ -64,7 +64,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--source", type=str, default="bea2019")
     parser.add_argument("--transform", action="store_true", default=False)
-    parser.add_argument("--mode", type=str, default="bahdanau")
+    parser.add_argument("--mode", type=str, default="luong")
 
     parser.add_argument("--train", action="store_true", default=False)
     parser.add_argument("--test", action="store_true", default=False)
@@ -73,7 +73,7 @@ if __name__ == "__main__":
     parser.add_argument("--norm_punctuation", action="store_true", default=False)
 
     parser.add_argument("--epochs", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--N", type=int, default=2)
     args = parser.parse_args()
 
