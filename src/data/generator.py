@@ -80,7 +80,7 @@ class DataGenerator():
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
-            yield ([inputs, decoder_inputs], targets, [])
+            yield ([inputs, decoder_inputs], targets)
 
     def next_valid_batch(self):
         """Get the next batch from valid partition (yield)"""
@@ -100,7 +100,7 @@ class DataGenerator():
             decoder_inputs = self.prepare_sequence(targets, sos=True)
             targets = self.prepare_sequence(targets, eos=True)
 
-            yield ([inputs, decoder_inputs], targets, [])
+            yield ([inputs, decoder_inputs], targets)
 
     def next_test_batch(self):
         """Get the next batch from test partition (yield)"""

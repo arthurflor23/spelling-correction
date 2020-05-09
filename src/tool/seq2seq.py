@@ -22,7 +22,7 @@ from tensorflow.keras.utils import Progbar, GeneratorEnqueuer
 
 from tensorflow.keras.callbacks import CSVLogger, TensorBoard, ModelCheckpoint
 from tensorflow.keras.callbacks import EarlyStopping, ReduceLROnPlateau
-from tensorflow.keras.layers import Concatenate, Attention, AdditiveAttention, LayerNormalization
+from tensorflow.keras.layers import Concatenate, LayerNormalization, Attention, AdditiveAttention
 from tensorflow.keras.layers import Input, Bidirectional, GRU, TimeDistributed, Dense
 
 
@@ -102,7 +102,7 @@ class Seq2SeqAttention():
 
         return callbacks
 
-    def compile(self, learning_rate=None):
+    def compile(self, learning_rate=None, initial_step=0):
         """
         Build models (train, encoder and decoder)
 
@@ -166,12 +166,15 @@ class Seq2SeqAttention():
 
         """ Train model """
         if learning_rate is None:
-            learning_rate = 0.001
+            learning_rate = CustomSchedule(d_model=self.tokenizer.vocab_size, initial_step=initial_step)
+            self.learning_schedule = True
+        else:
+            self.learning_schedule = False
 
         optimizer = Adam(learning_rate=learning_rate, clipnorm=1.0, clipvalue=0.5, epsilon=1e-8)
 
         self.model = Model(inputs=[encoder_inputs, decoder_inputs], outputs=decoder_pred, name="seq2seq")
-        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=['accuracy'])
+        self.model.compile(optimizer=optimizer, loss=self.loss_func, metrics=["accuracy"])
 
         """ Inference model """
 
@@ -228,6 +231,10 @@ class Seq2SeqAttention():
         :return: A history object
         """
 
+        # remove ReduceLROnPlateau (if exist) when use schedule learning rate
+        if callbacks and self.learning_schedule:
+            callbacks = [x for x in callbacks if not isinstance(x, ReduceLROnPlateau)]
+
         out = self.model.fit(x=x, y=y, batch_size=batch_size, epochs=epochs, verbose=verbose,
                              callbacks=callbacks, validation_split=validation_split,
                              validation_data=validation_data, shuffle=shuffle,
@@ -264,9 +271,6 @@ class Seq2SeqAttention():
             Sequence-to-Sequence Learning for Spelling Correction
             Github: https://github.com/vuptran/deep-spell-checkr
         """
-
-        self.encoder._make_predict_function()
-        self.decoder._make_predict_function()
 
         try:
             enqueuer = GeneratorEnqueuer(x, use_multiprocessing=use_multiprocessing)
@@ -338,3 +342,35 @@ class Seq2SeqAttention():
         """Loss function with CategoryCrossentropy and label smoothing"""
 
         return tf.keras.losses.CategoricalCrossentropy(label_smoothing=0.1, reduction="none")(y_true, y_pred)
+
+
+"""
+Custom Schedule
+
+Reference:
+    Ashish Vaswani and Noam Shazeer and Niki Parmar and Jakob Uszkoreit and
+    Llion Jones and Aidan N. Gomez and Lukasz Kaiser and Illia Polosukhin.
+    "Attention Is All You Need", 2017
+    arXiv, URL: https://arxiv.org/abs/1706.03762
+"""
+
+
+class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
+    """
+    Custom schedule of the learning rate with warmup_steps.
+    From original paper "Attention is all you need".
+    """
+
+    def __init__(self, d_model, initial_step=0, warmup_steps=4000):
+        super(CustomSchedule, self).__init__()
+
+        self.d_model = d_model
+        self.d_model = tf.cast(self.d_model, dtype="float32")
+        self.initial_step = initial_step
+        self.warmup_steps = warmup_steps
+
+    def __call__(self, step):
+        arg1 = tf.math.rsqrt(step + self.initial_step)
+        arg2 = step * (self.warmup_steps**-1.5)
+
+        return tf.math.rsqrt(self.d_model) * tf.math.minimum(arg1, arg2)
