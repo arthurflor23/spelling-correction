@@ -59,9 +59,10 @@ def ocr_metrics(ground_truth, data, predict=None, norm_accentuation=False, norm_
     norm = [i for i in range(len(s_arr[0])) if (s_arr[0][i] > mean - 2 * std)]
     norm = [i for i in norm if (s_arr[0][i] < mean + 2 * std)]
 
-    s_arr[0] = [s_arr[0][i] for i in norm]
-    s_arr[1] = [s_arr[1][i] for i in norm]
-    s_arr[2] = [s_arr[2][i] for i in norm]
-    s_arr = np.mean(s_arr, axis=1)
+    if len(predict) > 3:
+        s_arr[0] = [s_arr[0][i] for i in norm]
+        s_arr[1] = [s_arr[1][i] for i in norm]
+        s_arr[2] = [s_arr[2][i] for i in norm]
 
+    s_arr = np.mean(s_arr, axis=1)
     return f_arr, s_arr
