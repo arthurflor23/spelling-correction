@@ -163,7 +163,9 @@ if __name__ == "__main__":
 
                 old_metric, new_metric = ev.ocr_metrics(ground_truth=dtgen.dataset['test']['gt'],
                                                         data=dtgen.dataset['test']['dt'],
-                                                        predict=predicts)
+                                                        predict=predicts,
+                                                        norm_accentuation=args.norm_accentuation,
+                                                        norm_punctuation=args.norm_punctuation)
 
                 p_corpus, e_corpus = report(dtgen=dtgen,
                                             predicts=predicts,
@@ -171,11 +173,15 @@ if __name__ == "__main__":
                                             total_time=total_time,
                                             plus=f"N: {args.N}\n")
 
+                sufix = ("_norm" if args.norm_accentuation or args.norm_punctuation else "") + \
+                        ("_accentuation" if args.norm_accentuation else "") + \
+                        ("_punctuation" if args.norm_punctuation else "")
+
                 with open(os.path.join(output_path, "predict.txt"), "w") as lg:
                     lg.write("\n".join(p_corpus))
                     print("\n".join(p_corpus[:30]))
 
-                with open(os.path.join(output_path, "evaluate.txt"), "w") as lg:
+                with open(os.path.join(output_path, f"evaluate{sufix}.txt"), "w") as lg:
                     lg.write(e_corpus)
                     print(e_corpus)
 
