@@ -134,7 +134,7 @@ class Transformer():
                                rate=self.dropout)
 
         enc_output = self.encoder(enc_input, enc_padding_mask)
-        dec_output, _ = self.decoder(dec_input, enc_output, look_ahead_mask, dec_padding_mask)
+        dec_output, attention_weights = self.decoder(dec_input, enc_output, look_ahead_mask, dec_padding_mask)
 
         if learning_rate is None:
             learning_rate = CustomSchedule(d_model=self.d_model, initial_step=initial_step)
