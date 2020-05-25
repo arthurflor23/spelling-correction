@@ -9,7 +9,12 @@ import editdistance
 import numpy as np
 
 
-def ocr_metrics(ground_truth, data, predict=None, norm_accentuation=False, norm_punctuation=False):
+def ocr_metrics(ground_truth,
+                data,
+                predict=None,
+                norm_accentuation=False,
+                norm_punctuation=False,
+                std_normalization=False):
     """
     Calculate Character Error Rate (CER), Word Error Rate (WER) and Sequence Error Rate (SER).
         - if `ground_truth` and `data` parameters is entered, one metric will be returned (data);
@@ -54,15 +59,17 @@ def ocr_metrics(ground_truth, data, predict=None, norm_accentuation=False, norm_
         return f_arr
 
     s_arr = calculate(ground_truth, predict)
-    mean, std = np.mean(s_arr[0]), np.std(s_arr[0])
 
-    norm = [i for i in range(len(s_arr[0])) if (s_arr[0][i] > mean - 2 * std)]
-    norm = [i for i in norm if (s_arr[0][i] < mean + 2 * std)]
+    if std_normalization and len(predict) > 3:
+        mean, std = np.mean(s_arr[0]), np.std(s_arr[0])
 
-    if len(predict) > 3:
+        norm = [i for i in range(len(s_arr[0])) if (s_arr[0][i] > mean - 3 * std)]
+        norm = [i for i in norm if (s_arr[0][i] < mean + 3 * std)]
+
         s_arr[0] = [s_arr[0][i] for i in norm]
         s_arr[1] = [s_arr[1][i] for i in norm]
         s_arr[2] = [s_arr[2][i] for i in norm]
 
     s_arr = np.mean(s_arr, axis=1)
+
     return f_arr, s_arr
