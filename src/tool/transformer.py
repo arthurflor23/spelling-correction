@@ -390,8 +390,7 @@ class DecoderLayer(tf.keras.layers.Layer):
         attn1 = self.dropout1(attn1)
         out1 = self.layernorm1(attn1 + x)
 
-        attn2, attn_weights_block2 = self.mha2(
-            enc_output, enc_output, out1, padding_mask)  # (batch_size, target_seq_len, d_model)
+        attn2, attn_weights_block2 = self.mha2(enc_output, enc_output, out1, padding_mask)  # (batch_size, target_seq_len, d_model)
         attn2 = self.dropout2(attn2)
         out2 = self.layernorm2(attn2 + out1)  # (batch_size, target_seq_len, d_model)
 
