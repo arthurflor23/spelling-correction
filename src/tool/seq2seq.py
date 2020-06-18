@@ -32,11 +32,14 @@ class Seq2SeqAttention():
     This class implement Luong and Bahdanau architectures with layer normalization approach.
     """
 
-    def __init__(self, tokenizer, mode, units, dropout=0.0):
+    def __init__(self, tokenizer, mode, units, dropout=0.0, stop_tolerance=20, reduce_tolerance=15):
         self.tokenizer = tokenizer
         self.mode = mode
         self.units = units
         self.dropout = dropout
+
+        self.stop_tolerance = stop_tolerance
+        self.reduce_tolerance = reduce_tolerance
 
         self.model = None
         self.encoder = None
@@ -89,14 +92,14 @@ class Seq2SeqAttention():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=1e-8,
-                patience=20,
+                patience=self.stop_tolerance,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=1e-8,
                 factor=0.2,
-                patience=15,
+                patience=self.reduce_tolerance,
                 verbose=verbose)
         ]
 

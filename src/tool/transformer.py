@@ -40,13 +40,16 @@ class Transformer():
         Jupyter Notebook: https://colab.research.google.com/drive/1YhN8ZCZhrv18Hw0a_yIkuZ5tTh4EZDuG#scrollTo=ha0dNJogUPQN
     """
 
-    def __init__(self, tokenizer, num_layers, units, d_model, num_heads, dropout=0.0):
+    def __init__(self, tokenizer, num_layers, units, d_model, num_heads, dropout=0.0, stop_tolerance=20, reduce_tolerance=15):
         self.tokenizer = tokenizer
         self.num_layers = num_layers
         self.units = units
         self.d_model = d_model
         self.num_heads = num_heads
         self.dropout = dropout
+
+        self.stop_tolerance = stop_tolerance
+        self.reduce_tolerance = reduce_tolerance
 
         self.model = None
         self.encoder = None
@@ -97,14 +100,14 @@ class Transformer():
             EarlyStopping(
                 monitor=monitor,
                 min_delta=1e-8,
-                patience=20,
+                patience=self.stop_tolerance,
                 restore_best_weights=True,
                 verbose=verbose),
             ReduceLROnPlateau(
                 monitor=monitor,
                 min_delta=1e-8,
                 factor=0.2,
-                patience=15,
+                patience=self.reduce_tolerance,
                 verbose=verbose)
         ]
 
