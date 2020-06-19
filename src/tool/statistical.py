@@ -110,7 +110,7 @@ class LanguageModel():
             split = []
 
             for x in sentences[i].split():
-                sugg = ngram.find(x) if x not in string.punctuation else None
+                sugg = ngram.find(x.lower()) if x not in string.punctuation else None
                 split.append(sugg if sugg else x)
 
             predicts.append(" ".join(split))
@@ -144,7 +144,7 @@ class LanguageModel():
             split = []
 
             for x in sentences[i].split():
-                sugg = norvig.correction(x) if x not in string.punctuation else None
+                sugg = norvig.correction(x.lower()) if x not in string.punctuation else None
                 split.append(sugg if sugg else x)
 
             predicts.append(" ".join(split))
@@ -180,7 +180,7 @@ class LanguageModel():
             split = []
 
             for x in sentences[i].split():
-                sugg = symspell.lookup(x, verbosity=0, max_edit_distance=self.N,
+                sugg = symspell.lookup(x.lower(), verbosity=0, max_edit_distance=self.N,
                                        transfer_casing=True) if x not in string.punctuation else None
                 split.append(sugg[0].term if sugg else x)
 
