@@ -65,17 +65,17 @@ LOGLKH_ALPHA_FACTOR=0.3               # p(x|s) = P(s|x) / P(s)^LOGLKH_ALPHA_FACT
 # ------------------------------------------------------------------------------------------------------
 # Modelling settings
 # ------------------------------------------------------------------------------------------------------
-HMM_LOOP_PROB=0.5			          # Self-Loop HMM-state probability
+HMM_LOOP_PROB=0.25			          # Self-Loop HMM-state probability
 HMM_NAC_PROB=0.5			          # BLSTM-NaC HMM-state probability
 GSF=1.0		 			  		      # Grammar Scale Factor
-WIP=0.25		 			  	      # Word Insertion Penalty
-ASF=1.5					  		      # Acoustic Scale Factor
+WIP=-1.0		 			  	      # Word Insertion Penalty
+ASF=1.0					  		      # Acoustic Scale Factor
 # ------------------------------------------------------------------------------------------------------
 # Decoding settings
 # ------------------------------------------------------------------------------------------------------
 MAX_NUM_ACT_STATES=2007483647		  # Maximum number of active states
-BEAM_SEARCH=10						  # Beam search
-LATTICE_BEAM=10						  # Lattice generation beam
+BEAM_SEARCH=15						  # Beam search
+LATTICE_BEAM=15					  	  # Lattice generation beam
 # ------------------------------------------------------------------------------------------------------
 # System settings
 # ------------------------------------------------------------------------------------------------------
