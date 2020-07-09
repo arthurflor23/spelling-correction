@@ -253,7 +253,7 @@ class Dataset():
 
         punc_percent = (len(strip_punc) - len(no_punc)) / len(strip_punc)
 
-        return len(no_punc) > 2 and punc_percent <= 0.1
+        return len(no_punc) > 2 and punc_percent <= 0.2
 
 
 def read_from_txt(file_name):
