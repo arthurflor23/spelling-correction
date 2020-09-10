@@ -1,5 +1,5 @@
 editdistance==0.5.3
 ngram==3.3.2
-pyspellchecker==0.5.4
-symspellpy==6.5.2
-tensorflow==2.2.0
+pyspellchecker==0.5.5
+symspellpy==6.7.0
+tensorflow==2.3.0
