@@ -67,3 +67,23 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 ## Tutorial (Google Colab/Drive)
 
 A Jupyter Notebook is available to demo run (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/spelling-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
+
+## Citation
+
+If this project helped in any way in your research work, feel free to cite the following paper:
+
+```
+@inproceedings{10.1145/3395027.3419603,
+    author      = {Neto, Arthur F. S. and Bezerra, Byron L. D. and Toselli, Alejandro H. and Lima, Estanislau B.},
+    title       = {{HTR-Flor++:} A Handwritten Text Recognition System Based on a Pipeline of Optical and Language Models},
+    booktitle   = {Proceedings of the ACM Symposium on Document Engineering 2020},
+    year        = {2020},
+    publisher   = {Association for Computing Machinery},
+    address     = {New York, NY, USA},
+    location    = {Virtual Event, CA, USA},
+    series      = {DocEng '20},
+    isbn        = {9781450380003},
+    url         = {https://doi.org/10.1145/3395027.3419603},
+    doi         = {10.1145/3395027.3419603},
+}
+```
