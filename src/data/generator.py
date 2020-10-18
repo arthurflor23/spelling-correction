@@ -17,19 +17,17 @@ class DataGenerator():
         self.index = dict()
         self.dataset = reader.read_from_txt(source)
 
+        randomize = np.arange(len(self.dataset['train']['gt']))
+        np.random.seed(42)
+        np.random.shuffle(randomize)
+
+        self.dataset['train']['dt'] = np.asarray(self.dataset['train']['dt'])[randomize]
+        self.dataset['train']['gt'] = np.asarray(self.dataset['train']['gt'])[randomize]
+
         for pt in self.partitions:
-            randomize = np.arange(len(self.dataset[pt]['gt']))
-            np.random.seed(42)
-            np.random.shuffle(randomize)
-
-            self.dataset[pt]['dt'] = np.asarray(self.dataset[pt]['dt'])[randomize]
-            self.dataset[pt]['gt'] = np.asarray(self.dataset[pt]['gt'])[randomize]
-
-            # text standardize to avoid erros
             self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
             self.dataset[pt]['gt'] = [pp.text_standardize(x) for x in self.dataset[pt]['gt']]
 
-            # set size and setps
             self.size[pt] = len(self.dataset[pt]['gt'])
             self.steps[pt] = int(np.ceil(self.size[pt] / self.batch_size))
 
