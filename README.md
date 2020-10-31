@@ -122,7 +122,7 @@ If this project helped in any way in your research work, feel free to cite the f
     year    = {2020},
     volume  = {10},
     number  = {21},
-    url     = {https://www.mdpi.com/2076-3417/10/21/7711},
+    url     = {https://doi.org/10.3390/app10217711},
     doi     = {10.3390/app10217711},
 }
 ```
