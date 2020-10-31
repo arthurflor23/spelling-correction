@@ -68,9 +68,33 @@ i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-da
 
 A Jupyter Notebook is available to demo run (neural network approach), check out the **[tutorial](https://github.com/arthurflor23/spelling-correction/blob/master/src/tutorial.ipynb)** on Google Colab/Drive.
 
+## Samples
+
+Samples using the output of an HTR system (corresponds to 'Baseline')
+
+### Bentham
+
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/bentham.png?raw=true">
+
+### IAM
+
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/iam.png?raw=true">
+
+### RIMES
+
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/rimes.png?raw=true">
+
+### Saint Gall
+
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/saintgall.png?raw=true">
+
+### Washington
+
+<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/washington.png?raw=true">
+
 ## Citation
 
-If this project helped in any way in your research work, feel free to cite the following paper:
+If this project helped in any way in your research work, feel free to cite the following papers:
 
 ```
 @inproceedings{10.1145/3395027.3419603,
@@ -85,5 +109,20 @@ If this project helped in any way in your research work, feel free to cite the f
     isbn        = {9781450380003},
     url         = {https://doi.org/10.1145/3395027.3419603},
     doi         = {10.1145/3395027.3419603},
+}
+```
+
+```
+@article{10.3390/app10217711,
+    author  = {Neto, Arthur F. S. and Bezerra, Byron L. D. and Toselli, Alejandro H.},
+    title   = {Towards the Natural Language Processing as Spelling Correction for Offline Handwritten Text Recognition Systems},
+    journal = {Applied Sciences},
+    pages   = {1-29},
+    month   = {10},
+    year    = {2020},
+    volume  = {10},
+    number  = {21},
+    url     = {https://www.mdpi.com/2076-3417/10/21/7711},
+    doi     = {10.3390/app10217711},
 }
 ```
