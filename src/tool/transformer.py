@@ -9,6 +9,12 @@ References:
 """
 
 import os
+
+try:
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = "3"
+except AttributeError:
+    pass
+
 import numpy as np
 import tensorflow as tf
 
