@@ -94,7 +94,11 @@ Samples using the output of an HTR system (corresponds to 'Baseline')
 
 ## Citation
 
-If this project helped in any way in your research work, feel free to cite the following papers:
+If this project helped in any way in your research work, feel free to cite the following papers.
+
+### HTR-Flor++: A Handwritten Text Recognition System Based on a Pipeline of Optical and Language Models ([here](https://doi.org/10.1145/3395027.3419603))
+
+This work aimed to propose a different pipeline for Handwritten Text Recognition (HTR) systems in post-processing, using two steps to correct the output text. The first step aimed to correct the text at the character level (using N-gram model). The second step had the objective of correcting the text at the word level (using a word frequency dictionary). The experiment was validated in the IAM dataset and compared to the best works proposed within this data scenario.
 
 ```
 @inproceedings{10.1145/3395027.3419603,
@@ -111,6 +115,10 @@ If this project helped in any way in your research work, feel free to cite the f
     doi         = {10.1145/3395027.3419603},
 }
 ```
+
+### Towards the Natural Language Processing as Spelling Correction for Offline Handwritten Text Recognition Systems ([here](https://doi.org/10.3390/app10217711))
+
+This work aimed a deep study within the research field of Natural Language Processing (NLP), and to bring its approaches to the research field of Handwritten Text Recognition (HTR). Thus, for the experiment and validation, we used 5 datasets (Bentham, IAM, RIMES, Saint Gall and Washington), 3 optical models (Bluche, Puigcerver, Flor), and 8 techniques for text correction in post-processing, including approaches statistics and neural networks, such as encoder-decoder models (seq2seq and Transformers).
 
 ```
 @article{10.3390/app10217711,
