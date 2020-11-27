@@ -76,21 +76,9 @@ Samples using the output of an HTR system (corresponds to 'Baseline')
 
 <img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/bentham.png?raw=true">
 
-### IAM
-
-<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/iam.png?raw=true">
-
 ### RIMES
 
 <img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/rimes.png?raw=true">
-
-### Saint Gall
-
-<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/saintgall.png?raw=true">
-
-### Washington
-
-<img src="https://github.com/arthurflor23/spelling-correction/blob/master/doc/samples/washington.png?raw=true">
 
 ## Citation
 
