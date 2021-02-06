@@ -15,14 +15,10 @@ class DataGenerator():
         self.size = dict()
         self.steps = dict()
         self.index = dict()
+
         self.dataset = reader.read_from_txt(source)
-
-        randomize = np.arange(len(self.dataset['train']['gt']))
+        self.arange = np.arange(len(self.dataset['train']['gt']))
         np.random.seed(42)
-        np.random.shuffle(randomize)
-
-        self.dataset['train']['dt'] = np.asarray(self.dataset['train']['dt'])[randomize]
-        self.dataset['train']['gt'] = np.asarray(self.dataset['train']['gt'])[randomize]
 
         for pt in self.partitions:
             self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
@@ -67,6 +63,10 @@ class DataGenerator():
         while True:
             if self.index['train'] >= self.size['train']:
                 self.index['train'] = 0
+
+                np.random.shuffle(self.arange)
+                self.dataset['train']['dt'] = self.dataset['train']['dt'][self.arange]
+                self.dataset['train']['gt'] = self.dataset['train']['gt'][self.arange]
 
             index = self.index['train']
             until = index + self.batch_size
