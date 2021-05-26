@@ -12,7 +12,7 @@ A spell corrector system implemented using the Statistical Language Model ([Ngra
 
 a. [BEA2019](https://www.cl.cam.ac.uk/research/nl/bea2019st/)
 
-b. [Bentham](http://transcriptorium.eu/datasets/bentham-collection/)
+b. [Bentham](http://www.transcriptorium.eu/~tsdata/)
 
 c. [CoNLL13](https://www.comp.nus.edu.sg/~nlp/conll13st.html)
 
@@ -24,9 +24,9 @@ f. [IAM](http://www.fki.inf.unibe.ch/databases/iam-handwriting-database)
 
 g. [Rimes](http://www.a2ialab.com/doku.php?id=rimes_database:start)
 
-h. [Saint Gall](http://www.fki.inf.unibe.ch/databases/iam-historical-document-database/saint-gall-database)
+h. [Saint Gall](https://fki.tic.heia-fr.ch/databases/saint-gall-database)
 
-i. [Washington](http://www.fki.inf.unibe.ch/databases/iam-historical-document-database/washington-database)
+i. [Washington](https://fki.tic.heia-fr.ch/databases/washington-database)
 
 ## Requirements
 
