@@ -29,7 +29,7 @@ class Dataset():
 
         dataset = getattr(self, f"_{name}")()
 
-        if not isinstance(self.dataset, list):
+        if not isinstance(dataset, list):
             dataset = dataset['train'] + dataset['valid'] + dataset['test']
 
         dataset = [y for x in dataset for y in pp.generate_multigrams(x)]
