@@ -190,8 +190,8 @@ if __name__ == "__main__":
                 dtgen.one_hot_process = False
                 model = Transformer(dtgen.tokenizer,
                                     num_layers=6,
-                                    units=512,
-                                    d_model=256,
+                                    units=128,
+                                    d_model=64,
                                     num_heads=8,
                                     dropout=0.1,
                                     stop_tolerance=20,
@@ -199,7 +199,7 @@ if __name__ == "__main__":
             else:
                 model = Seq2SeqAttention(dtgen.tokenizer,
                                          args.mode,
-                                         units=512,
+                                         units=128,
                                          dropout=0.2,
                                          stop_tolerance=20,
                                          reduce_tolerance=15)
