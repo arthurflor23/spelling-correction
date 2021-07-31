@@ -47,7 +47,7 @@ class DataGenerator():
             if add_noise:
                 n_sen[i] = pp.add_noise([n_sen[i]], self.tokenizer.maxlen)[0]
 
-            n_sen[i] = self.tokenizer.encode(sos + n_sen[i] + eos)
+            n_sen[i] = self.tokenizer.encode(sos + n_sen[i][:self.tokenizer.maxlen-2] + eos)
             n_sen[i] = np.pad(n_sen[i], (0, self.tokenizer.maxlen - len(n_sen[i])))
 
             if self.one_hot_process:
