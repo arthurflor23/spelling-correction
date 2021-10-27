@@ -21,8 +21,8 @@ class DataGenerator():
         np.random.seed(42)
 
         for pt in self.partitions:
-            self.dataset[pt]['dt'] = [pp.text_standardize(x) for x in self.dataset[pt]['dt']]
-            self.dataset[pt]['gt'] = [pp.text_standardize(x) for x in self.dataset[pt]['gt']]
+            self.dataset[pt]['dt'] = np.array([pp.text_standardize(x) for x in self.dataset[pt]['dt']])
+            self.dataset[pt]['gt'] = np.array([pp.text_standardize(x) for x in self.dataset[pt]['gt']])
 
             self.size[pt] = len(self.dataset[pt]['gt'])
             self.steps[pt] = int(np.ceil(self.size[pt] / self.batch_size))
