@@ -11,9 +11,9 @@
 #   unzip kaldi-*.zip && mv kaldi-master kaldi
 #	cp srilm-*.tar.gz kaldi/tools/srilm.tgz
 
-# Compile Kaldi with SRILM and OpenBLAS (needs ``sox subversion gcc-fortran`` packages):
+# Compile Kaldi with SRILM and OpenBLAS (needs ``python2 sox subversion gcc-fortran`` packages):
 #   cd ./kaldi/tools
-#   ./install_srilm.sh
+#   ./install_srilm.sh <user> <organization> <email>
 #   ./extras/install_openblas.sh
 #   make -j $(nproc)
 
